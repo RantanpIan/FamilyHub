@@ -75,22 +75,24 @@ Benutzerberechtigung simulieren. Details und noch fehlende Infrastruktur:
 | --- | --- | --- |
 | AUTH-T01 | Teilweise geprüft | `tests/integration/auth-profile.rls.test.ts` ruft Supabase Auth `signUp` auf und prüft den ausstehenden Bestätigungszustand. Der Test ist lokal ohne Supabase-Umgebung blockiert. |
 | AUTH-T02 | Teilweise geprüft | Supabase verlangt in der lokalen Konfiguration Bestätigung; der Integrationstest bestätigt den synthetischen Nutzer über die Test-Admin-API, nicht durch Öffnen des E-Mail-Links im Browser. Versandzustellung/Link-Klick ist nicht lokal nachgewiesen. |
-| AUTH-T03 | Geprüft, wenn Integrationstest ausgeführt | Gültige Anmeldung wird im Supabase-Integrationstest ausgeführt. |
-| AUTH-T04 | Geprüft, wenn Integrationstest ausgeführt | Falsches Passwort wird über Supabase Auth abgelehnt; UI-Fehler wird ohne rohe Auth-Antwort angezeigt. |
+| AUTH-T03 | Geprüft | Gültige Anmeldung wird gegen Supabase Auth in CI ausgeführt. |
+| AUTH-T04 | Geprüft | Falsches Passwort wird über Supabase Auth abgelehnt; UI-Fehler wird ohne rohe Auth-Antwort angezeigt. |
 | AUTH-T05 | Teilweise geprüft | SDK ist mit persistenter PKCE-Sitzung konfiguriert; kein echter Browser-Neulade-Test mit Supabase-Projektkonfiguration ausgeführt. |
-| AUTH-T06 | Geprüft, wenn Integrationstest ausgeführt | Lokales `signOut` und leere Sitzung werden im Integrationstest geprüft. |
+| AUTH-T06 | Geprüft | Lokales `signOut` und leere Sitzung werden im Supabase-Integrationstest geprüft. |
 | AUTH-T07 | Geprüft | `tests/e2e/smoke.spec.ts` ruft `/app` ohne Sitzung auf und bestätigt Weiterleitung zur Anmeldung ohne gerenderten geschützten App-Inhalt. |
 | AUTH-T08 | Teilweise geprüft | Reset-Anfrage und Recovery-Update sind implementiert; E-Mail-Versand und Recovery-Link-Klick sind mangels Supabase-/SMTP-Umgebung nicht ausgeführt. |
-| AUTH-T09 | Geprüft, wenn Integrationstest ausgeführt | Profil-Update des eigenen Anzeigenamens wird in der echten RLS-Testinstanz ausgeführt. |
-| AUTH-T10 | RLS-Test vorhanden; lokal blockiert | Zwei echte synthetische Auth-Identitäten lesen gegen dieselbe PostgreSQL-RLS-Grenze. |
-| AUTH-T11 | RLS-Test vorhanden; lokal blockiert | Fremdes Profil-Update bleibt ohne sichtbare Zeile; zusätzlich wird `user_id`-Update direkt an PostgREST abgewiesen. |
-| AUTH-T12 | Geprüft, wenn Integrationstest ausgeführt | Zweites Profil mit identischer Auth-UUID wird durch den Primärschlüssel abgewiesen. |
+| AUTH-T09 | Geprüft | Profil-Update des eigenen Anzeigenamens besteht in der echten RLS-Testinstanz in CI. |
+| AUTH-T10 | Geprüft | Zwei echte synthetische Auth-Identitäten lesen gegen dieselbe PostgreSQL-RLS-Grenze; fremde Zeile bleibt unsichtbar. |
+| AUTH-T11 | Geprüft | Fremdes Profil-Update bleibt unsichtbar; zusätzlich wird `user_id`-Update direkt an PostgREST abgewiesen. |
+| AUTH-T12 | Geprüft | Zweites Profil mit identischer Auth-UUID wird durch den Primärschlüssel abgewiesen. |
 | AUTH-T13 | Teilweise geprüft | Unit-Tests prüfen feste same-origin Callback-URLs und lehnen Nicht-HTTPS-/manipulierte Origin-Strings ab. Projekt-Allowlist ist zusätzlich extern zu konfigurieren. |
 | AUTH-T14 | UI implementiert; E2E mit Auth blockiert | Angemeldeter Nutzer ohne Familie erhält einen definierten Leerzustand; ein Browser-Test mit realer Supabase-Sitzung ist nicht ausgeführt. |
-| AUTH-T15 | Geprüft | Bestehende Unit-/Smoke-Tests sind erweitert und laufen lokal; GitHub Actions muss den neuen Commit noch ausführen. |
+| AUTH-T15 | Geprüft | 34 Unit- und ein lokaler Playwright-Test bestanden; GitHub Actions Typecheck/Lint/Unit/Build und sieben Supabase-Integrationstests bestanden. |
 
-Die Integrationstests sind keine erfolgreichen Testläufe, solange die lokale
-Supabase-Instanz nicht gestartet und `npm run test:integration` erfolgreich
-ausgeführt wurde. Die GitHub-Actions-`auth-rls`-Job-Konfiguration startet eine
-isolierte Supabase-Instanz; ihr Remote-Ergebnis für diesen uncommitteten Stand
-steht noch aus.
+Die lokale Ausführung von `npm run test:integration` ist in der
+Entwicklungsumgebung mangels Supabase CLI und `SUPABASE_TEST_*`-Variablen
+blockiert. Der GitHub-Actions-Job startet jedoch eine isolierte Supabase-Instanz;
+die sieben Integrationstests auf Commit `fadb4fd` waren erfolgreich:
+[CI-Lauf #3](https://github.com/RantanpIan/FamilyHub/actions/runs/39844689536).
+E-Mail-Zustellung/Link-Klick, Browser-Sitzungswiederherstellung und ein realer
+Projekt-Redirect bleiben separat und teilweise ungeprüft.
