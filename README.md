@@ -33,12 +33,18 @@ npm run lint
 npm run test:unit
 npx playwright install chromium
 npm run test:e2e
+npm test
 npm run build:client
 ```
 
 Der Playwright-Smoke-Test startet Vite selbst. In CI wird Chromium mit
-`npx playwright install --with-deps chromium` installiert. `npm run build`
-führt Typecheck, Lint, Unit-Tests und Produktionsbuild zusammen aus.
+`npx playwright install --with-deps chromium` installiert. `npm test` führt
+alle vorhandenen Unit- und Browser-E2E-Tests aus. Es gibt derzeit keine
+Integrationstests; spätere PostgreSQL-/RLS-Testvoraussetzungen sind in
+[`tests/integration/README.md`](./tests/integration/README.md) festgehalten.
+`npm run build` führt Typecheck, Lint, Unit-Tests und Produktionsbuild zusammen
+aus. Die Anforderungszuordnung und nicht getesteten Fachfunktionen dokumentiert
+[`docs/testing/requirements-coverage.md`](./docs/testing/requirements-coverage.md).
 
 ## Workspace
 

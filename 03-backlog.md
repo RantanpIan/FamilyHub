@@ -1,7 +1,7 @@
 # FamilyHub – Backlog und Umsetzungssteuerung
 
 > **Stand:** 22.10.2026, Dokumentationsexport.  
-> **Wichtig:** `FH-CX-001` ist **in Umsetzung**; weder neu starten noch ohne Auftrag refaktorieren. Andere Auftragsstände sind nicht verifiziert.  
+> **Wichtig:** `FH-CX-001` wurde im vorherigen Auftrag abgeschlossen. FH-CX-002 ist implementiert; der GitHub-Actions-Nachweis für diesen uncommitteten Stand steht noch aus. Andere Auftragsstände sind nicht verifiziert.
 > **Quellenlage:** Die frühere Planung umfasste **34 Codex-Aufträge (FH-CX-001 bis FH-CX-034)**. Die Phasenblöcke und einige Abhängigkeiten sind überliefert; **Originaltitel und exakte Akzeptanzkriterien aller einzelnen Aufträge sind nicht vollständig verfügbar**. Dieses Dokument erzeugt ausdrücklich **keine** Ersatzaufträge und erklärt keinen Auftrag für abgeschlossen.
 
 ## 1. Arbeitsmodell
@@ -28,7 +28,7 @@ Keine Story allein aufgrund eines grünen Builds auf „getestet“ setzen. Kein
 
 | Bereich (Epic-Gruppe) | Codex-Aufträge | Inhalt | Gesamtstatus |
 | --- | --- | --- | --- |
-| Foundation | `FH-CX-001`–`007` | Repository, Basistechnik, Identitäten, Zugriffe und Grundlagen | `001` in Umsetzung; übrige nicht verifiziert |
+| Foundation | `FH-CX-001`–`007` | Repository, Basistechnik, Identitäten, Zugriffe und Grundlagen | `001` abgeschlossen; `002` lokale Prüfungen bestanden, Remote-CI offen; übrige nicht verifiziert |
 | Kalender | `FH-CX-008`–`016` | Kalenderdomäne, Serien/Ausnahmen und nutzbare Terminabläufe | Nicht verifiziert |
 | Push | `FH-CX-017`–`021` | Erinnerungen, Empfänger, Zustellung und Sicherheitsmechanismen | Nicht verifiziert |
 | Schule | `FH-CX-022`–`026` | Schulprofil, Stundenplan, Gültigkeit und Kalenderprojektionen | Nicht verifiziert |
@@ -43,8 +43,8 @@ Die Sammelbezeichnungen der Gruppen sind **keine** rekonstruierten Originaltitel
 
 | ID | Gruppe | Titel/Auftragsinhalt | Status |
 | --- | --- | --- | --- |
-| FH-CX-001 | Foundation | **Monorepo, Projektstruktur, React/Vite, TypeScript, Supabase-Konfiguration** | **In Umsetzung** |
-| FH-CX-002 | Foundation | Originalauftrag ergänzen | Nicht verifiziert |
+| FH-CX-001 | Foundation | **Monorepo, Projektstruktur, React/Vite, TypeScript, Supabase-Konfiguration** | **Abgeschlossen** |
+| FH-CX-002 | Foundation | **Testfundament und synthetische Testdaten** | **Implementiert; GitHub-Actions-Nachweis offen** |
 | FH-CX-003 | Foundation | Originalauftrag ergänzen | Nicht verifiziert |
 | FH-CX-004 | Foundation | Originalauftrag ergänzen | Nicht verifiziert |
 | FH-CX-005 | Foundation | Originalauftrag ergänzen | Nicht verifiziert |
@@ -78,9 +78,9 @@ Die Sammelbezeichnungen der Gruppen sind **keine** rekonstruierten Originaltitel
 | FH-CX-033 | Releaseabsicherung | Originalauftrag ergänzen | Nicht verifiziert |
 | FH-CX-034 | Releaseabsicherung | Originalauftrag ergänzen | Nicht verifiziert |
 
-## 4. FH-CX-001 – laufender Auftrag (kein Ersatz-Auftrag!)
+## 4. FH-CX-001 – vorheriger Auftrag
 
-**Status:** **In Umsetzung** – durch Nutzer am 22.10.2026 bestätigt.
+**Status:** **Abgeschlossen** – im vorherigen Auftrag implementiert und die dort dokumentierten Prüfungen erfolgreich ausgeführt.
 
 **Bekannter bisheriger Titel:** „Monorepo, Projektstruktur, React/Vite, TypeScript, Supabase-Konfiguration“.
 
@@ -88,9 +88,9 @@ Die Sammelbezeichnungen der Gruppen sind **keine** rekonstruierten Originaltitel
 
 **Bekannte Voraussetzung:** Freigabe der Architektur-Baseline (G0). Keine explizit überlieferte numerische Vorgängerabhängigkeit.
 
-**Nicht verifiziert:** bereits implementierte Dateien, tatsächlich gelaufene Tests, vollständiger Auftragstext, zusätzliche Definition-of-Done-Kriterien und etwaige laufende Branches/PRs.
+**Hinweis:** Der vollständige historische Auftragstext ist in diesem rekonstruierten Backlog nicht enthalten. Der Folgeauftrag FH-CX-002 setzt auf dem bestätigten Foundation-Stand auf.
 
-**Verhaltensregel für Codex:** Vor jedweder Arbeit den aktuellen Repository-Stand und den bereits übergebenen Originalauftrag lesen. **Keinen neuen `FH-CX-001.md`-Auftrag aus diesen wenigen Metadaten konstruieren und den laufenden Scope nicht ändern.**
+**Verhaltensregel für Codex:** Die vorhandene Foundation bewahren und nur im Umfang des jeweiligen Folgeauftrags ändern.
 
 ## 5. Überlieferte Abhängigkeiten
 

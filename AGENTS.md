@@ -14,7 +14,7 @@ Prioritäten: einfache und kindgerechte Bedienung, Sicherheit und Datenschutz, Z
 
 ## 2. Projektstand — besonders wichtig
 
-- **FH-CX-001 befindet sich bereits in Umsetzung.** Diesen Auftrag nicht neu beginnen, nicht ohne Anlass neu aufsetzen, nicht als erledigt oder getestet kennzeichnen.
+- **FH-CX-001 wurde im vorherigen Auftrag abgeschlossen.** Bestehende Implementierung bewahren und nicht ohne Anlass neu aufsetzen.
 - Vor Änderungen vorhandene Implementierung, offene Änderungen, Tests, Dokumentation und den konkreten aktuellen Auftrag prüfen.
 - Nie eine scheinbar „saubere“ Neuimplementierung über laufende Arbeiten legen. Keine fremden oder uncommitteten Änderungen überschreiben oder verwerfen.
 - **Kalender und Stundenplan** sind die zuerst priorisierten Fachfunktionen. Erforderliche Familienverwaltung/Berechtigungen, Push und Importfunktionen unterstützen diese erste Stufe.

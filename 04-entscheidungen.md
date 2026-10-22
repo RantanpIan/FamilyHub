@@ -28,7 +28,7 @@
 | FH-DEC-019 | Versionierte APIs, fachliche Ereignisse, Idempotenz | Beschlossen | Konkurrierende Änderungen/Duplikate absichern |
 | FH-DEC-020 | Kalenderereignisse von Stundenplan-/Unterrichtsprojektionen trennen | Beschlossen | Eine fachliche Wahrheit pro Modul |
 | FH-DEC-021 | Die R1-Planung umfasst 34 Codex-Aufträge, FH-CX-001 bis 034 | Vorherige Planung bekannt | Original-Backlog zur vollständigen Zuordnung nachtragen |
-| FH-DEC-022 | FH-CX-001 wurde begonnen und ist in Umsetzung | Durch Nutzer bestätigt | Nicht neu starten oder als abgeschlossen behaupten |
+| FH-DEC-022 | FH-CX-001 wurde abgeschlossen und die Foundation ist Basis für FH-CX-002 | Durch vorherigen Auftragsabschluss bestätigt | Bestehende Foundation bewahren und Folgeaufträge darauf aufbauen |
 
 ## 2. Konkretisierte Regeln – keine neuen Baseline-Entscheidungen
 

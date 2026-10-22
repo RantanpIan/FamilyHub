@@ -9,14 +9,14 @@ export type FamilyMemberId = z.infer<typeof FamilyMemberIdSchema>;
 export type UserId = z.infer<typeof UserIdSchema>;
 
 export const NotificationRecipientSelectionSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("all") }),
+  z.object({ kind: z.literal("all") }).strict(),
   z.object({
-    kind: z.literal("selected"),
+    kind: z.literal("selected_members"),
     memberIds: z.array(FamilyMemberIdSchema).min(1).refine(
       (ids) => new Set(ids).size === ids.length,
       "Mitglieds-IDs dürfen nicht doppelt vorkommen.",
     ),
-  }),
+  }).strict(),
 ]);
 
 export type NotificationRecipientSelection = z.infer<

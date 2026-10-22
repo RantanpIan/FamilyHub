@@ -30,8 +30,8 @@ TypeScript prüft alle Paketquellen gemeinsam über die Root-Konfiguration.
 - Familienfreigabe ist eine ausdrückliche Sichtbarkeit, keine administrative
   Umgehung privater Inhalte.
 - Benachrichtigungsempfänger werden später über Mitglieds-IDs adressiert. Der
-  gemeinsame Vertrag unterscheidet explizit „Alle“ von einer Liste eindeutiger
-  IDs; ein Versand ist nicht implementiert.
+  gemeinsame Vertrag unterscheidet `all` explizit von `selected_members` mit
+  eindeutigen IDs; Empfängerauflösung und Versand sind nicht implementiert.
 - Ausschließlich synthetische Daten dürfen in Tests verwendet werden.
 
 ## Zielplattformen

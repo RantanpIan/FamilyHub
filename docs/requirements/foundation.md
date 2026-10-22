@@ -14,5 +14,5 @@
 | Mitglieder ohne Login | Identitäten und Familienmitglieds-IDs sind getrennte Vertragskonzepte |
 | Mehrere Familien | Familien-IDs und RLS-Anforderung für spätere Datenbankarbeit |
 | Getrennte Fachmodule | eigene Kalender-, Schul- und Benachrichtigungspakete |
-| „Alle“ Push-Empfänger | Union-Vertrag neben expliziter Mitglieds-ID-Liste; kein Versand |
-| Synthetische Testdaten | Unit-Tests verwenden ausschließlich feste, synthetische UUIDs |
+| „Alle“ Push-Empfänger | Vertrag mit `all` und `selected_members`; keine Empfängerauflösung oder Zustellung |
+| Synthetische Testdaten | Gemeinsame deterministische Familien-Fixtures; ausschließlich fiktive UUIDs |

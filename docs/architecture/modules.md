@@ -12,3 +12,12 @@
 
 Domain-Pakete importieren keine anderen Domain-Pakete. Gemeinsame Typen und
 Validierung liegen in `contracts`; UI-Komponenten bleiben fachlich neutral.
+
+## Test-Fixtures und Policy-Grenze
+
+Deterministische, ausschließlich synthetische Fixtures für zwei getrennte
+Familien liegen unter `tests/fixtures`. Die TypeScript-Beispiel-Policy prüft
+Eigentümerschaft, aktive explizite Lesefreigaben, Mitgliedschaft und
+Familienzugehörigkeit. Schreibzugriffe sind in diesem Beispiel auf den
+Eigentümer begrenzt. Das ist kein Ersatz für PostgreSQL-RLS, serverseitige
+Autorisierung oder eine noch freizugebende Produktrollenmatrix.
