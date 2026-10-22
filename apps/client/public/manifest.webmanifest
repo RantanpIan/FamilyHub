@@ -1,0 +1,9 @@
+{
+  "name": "FamilyHub",
+  "short_name": "FamilyHub",
+  "description": "Der gemeinsame Organisationsort für Familien.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f7f5",
+  "theme_color": "#f4f7f5"
+}

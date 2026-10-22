@@ -1,0 +1,21 @@
+{
+  "name": "@familyhub/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --config ../../vite.config.ts",
+    "build": "vite build --config ../../vite.config.ts"
+  },
+  "dependencies": {
+    "@familyhub/authorization": "0.1.0",
+    "@familyhub/calendar-domain": "0.1.0",
+    "@familyhub/contracts": "0.1.0",
+    "@familyhub/notifications-domain": "0.1.0",
+    "@familyhub/school-domain": "0.1.0",
+    "@familyhub/ui": "0.1.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zod": "^4.6.7"
+  }
+}

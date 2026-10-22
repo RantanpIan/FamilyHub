@@ -1,0 +1,18 @@
+# FH-CX-001 – Foundation-Anforderungen
+
+| Anforderung | Foundation-Abdeckung |
+| --- | --- |
+| React, TypeScript und Vite | `apps/client` und Root-TypeScript-Konfiguration |
+| Responsive Web-App / PWA-Vorbereitung | Desktop-/Mobilnavigation, Web-App-Manifest |
+| Capacitor-Vorbereitung | Capacitor Core/CLI und Root-Konfiguration; keine nativen Projekte |
+| Supabase, PostgreSQL und Supabase Auth | Projektkonfiguration und `.env.example`; noch keine Verbindung oder Anmeldung |
+| Modularer Monolith / Monorepo | npm-Workspaces und getrennte Domain-Pakete |
+| Vitest, Playwright, Typecheck | Unit-, Browser-Smoke- und Typecheck-Skripte |
+| GitHub Actions | Qualitäts- und E2E-Jobs in `.github/workflows/ci.yml` |
+| Zod | Gemeinsame ID-, Sichtbarkeits- und Empfängerverträge |
+| Private Inhalte | getestete Beispiel-Policy: Eigentümerzugriff; Admin erhält keine Sonderrechte |
+| Mitglieder ohne Login | Identitäten und Familienmitglieds-IDs sind getrennte Vertragskonzepte |
+| Mehrere Familien | Familien-IDs und RLS-Anforderung für spätere Datenbankarbeit |
+| Getrennte Fachmodule | eigene Kalender-, Schul- und Benachrichtigungspakete |
+| „Alle“ Push-Empfänger | Union-Vertrag neben expliziter Mitglieds-ID-Liste; kein Versand |
+| Synthetische Testdaten | Unit-Tests verwenden ausschließlich feste, synthetische UUIDs |
