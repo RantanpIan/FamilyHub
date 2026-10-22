@@ -1,9 +1,9 @@
 # FamilyHub
 
 FamilyHub wird ein geschützter, gemeinsamer Ort für die Familienorganisation.
-**FH-CX-001 liefert ausschließlich die technische Foundation.** Kalender,
-Aufgaben, Schule, Anmeldung und Benachrichtigungen sind sichtbar als
-nicht verfügbar markiert; es werden keine persönlichen Daten gespeichert.
+Die Basis aus FH-CX-001/002 ist um Supabase Auth und private Benutzerprofile
+erweitert. Kalender, Aufgaben, Schule, Familienverwaltung und Benachrichtigungen
+sind weiterhin sichtbar als nicht verfügbar markiert.
 
 ## Voraussetzungen
 
@@ -18,12 +18,17 @@ npm `11.6.2`. `package-lock.json` fixiert die aufgelösten Abhängigkeiten.
 ```powershell
 npm ci
 Copy-Item .env.example .env
+# .env mit der Supabase-Projekt-URL und dem öffentlichen Anon-/Publishable-Key ergänzen
 npm run dev
 ```
 
-Vite startet die Web-App unter `http://127.0.0.1:5173`. Die Supabase-Variablen
-in `.env` sind Platzhalter; für FH-CX-001 wird keine Backend-Verbindung
-hergestellt. Es werden keine Zugangsdaten benötigt.
+Vite startet die Web-App unter `http://127.0.0.1:5173`. Authentifizierung ist
+erst verfügbar, wenn `VITE_SUPABASE_URL` und `VITE_SUPABASE_ANON_KEY` mit den
+öffentlichen Projektwerten gesetzt sind. Der Browser verwendet ausschließlich
+den öffentlichen Anon-/Publishable-Key; niemals einen Service-Role-Key in
+`VITE_*`-Variablen eintragen. Supabase Auth muss im Dashboard die App-URL und
+den festen Callback `/auth` in der Redirect-Allowlist führen. Für lokale Tests
+ist `http://127.0.0.1:5173/auth` in `supabase/config.toml` vorbereitet.
 
 ## Prüfungen
 
@@ -34,31 +39,38 @@ npm run test:unit
 npx playwright install chromium
 npm run test:e2e
 npm test
+npm run test:integration
 npm run build:client
 ```
 
 Der Playwright-Smoke-Test startet Vite selbst. In CI wird Chromium mit
 `npx playwright install --with-deps chromium` installiert. `npm test` führt
-alle vorhandenen Unit- und Browser-E2E-Tests aus. Es gibt derzeit keine
-Integrationstests; spätere PostgreSQL-/RLS-Testvoraussetzungen sind in
-[`tests/integration/README.md`](./tests/integration/README.md) festgehalten.
+alle vorhandenen Unit- und Browser-E2E-Tests aus. PostgreSQL-/RLS-Integrationstests
+werden separat gegen eine lokale, wegwerfbare Supabase-Instanz ausgeführt;
+Voraussetzungen stehen in [`tests/integration/README.md`](./tests/integration/README.md).
 `npm run build` führt Typecheck, Lint, Unit-Tests und Produktionsbuild zusammen
 aus. Die Anforderungszuordnung und nicht getesteten Fachfunktionen dokumentiert
 [`docs/testing/requirements-coverage.md`](./docs/testing/requirements-coverage.md).
+Die PostgreSQL/RLS-Tests benötigen eine lokale, wegwerfbare Supabase-Instanz
+und `SUPABASE_TEST_URL`, `SUPABASE_TEST_ANON_KEY` sowie
+`SUPABASE_TEST_SERVICE_ROLE_KEY`. Der Service-Role-Key wird ausschließlich vom
+Testprozess zum Erzeugen/Löschen synthetischer Auth-Nutzer verwendet und nie
+für die geprüften Profilzugriffe. GitHub Actions startet dafür eine separate
+lokale Supabase-Instanz.
 
 ## Workspace
 
 ```text
-apps/client                 React-/Vite-Anwendung
+apps/client                 React-/Vite-Anwendung mit Supabase Auth
 packages/ui                 Designsystem und wiederverwendbare UI-Zustände
 packages/contracts          gemeinsame Zod-Schemas und TypeScript-Verträge
 packages/authorization      Beispiel-Policy für private Inhalte
 packages/calendar-domain   Kalender-Fachmodul (noch nicht verfügbar)
 packages/school-domain     Schul-Fachmodul (noch nicht verfügbar)
 packages/notifications-domain Benachrichtigungs-Fachmodul (noch nicht verfügbar)
-supabase/migrations         keine persönlichen Tabellen in FH-CX-001
-supabase/functions          keine Funktionen in FH-CX-001
-tests                       Unit- und Playwright-Smoke-Tests
+supabase/migrations         versionierte user_profiles-Migration mit RLS
+supabase/functions          vorbereitet; keine Produktivfunktionen
+tests                       Unit-, PostgreSQL/RLS-Integration und Playwright-Smoke-Tests
 docs                        Architektur, Anforderungen und ADRs
 ```
 
@@ -68,30 +80,56 @@ Die verwendeten stabilen Versionen stehen in `package.json`; das Lockfile hält
 den vollständigen reproduzierbaren Dependency-Baum fest. Wesentliche
 Foundation-Versionen: React/React DOM 19.3.1, Vite 8.3.5,
 TypeScript 6.0.3, Vitest 5.0.5, Playwright 1.64.1, Zod 4.6.7,
-ESLint 10.13.0 und Capacitor 8.5.3. Supabase wird vorbereitet, aber nicht
-verbunden. Die Node-Engine-Einschränkungen der verwendeten Testwerkzeuge sind
-im Root-Paket dokumentiert.
+ESLint 10.13.0, Capacitor 8.5.3 und `@supabase/supabase-js` 2.118.0.
+Die Node-Engine-Einschränkungen der verwendeten Testwerkzeuge sind im
+Root-Paket dokumentiert.
 
 ## Datenschutz und Architektur
 
-Familien sind später voneinander zu isolieren. PostgreSQL Row Level Security
-(RLS) muss jeden Datenzugriff tenant-scopen. Ein privater Inhalt bleibt privat;
-die Administratorrolle gewährt keinen automatischen Zugriff. Familienmitglieder
-ohne Login bleiben vom Auth-User getrennte Datensätze. Push-Empfänger werden
-später über Mitglieds-IDs adressiert, mit einer expliziten Option „Alle“.
+Supabase Auth ist die führende Quelle für Identität und Sitzung. Der Client
+stellt die Sitzung über den PKCE-Flow wieder her und erneuert sie automatisch;
+geschützte App-Inhalte werden ohne aktive Sitzung nicht gerendert. Die Migration
+`supabase/migrations/20261022220000_create_user_profiles.sql` erstellt ein
+eigenes Profil je Auth-Konto und erlaubt über RLS nur Lesen/Anlegen des eigenen
+Profils sowie das Ändern des Anzeigenamens. Die `user_id`-Spalte ist nicht
+update-berechtigt.
+
+Das Profil wird nach bestätigter Anmeldung idempotent angelegt, nicht durch
+einen `auth.users`-Trigger. Fehlschläge blockieren damit nicht stillschweigend
+Registrierung/E-Mail-Bestätigung und werden in der UI sichtbar. Ein angemeldetes
+Konto ohne Familienzuordnung erhält einen definierten Leerzustand. Familien
+sind später voneinander zu isolieren; RLS und serverseitige Autorisierung bleiben
+für alle fachlichen Daten maßgeblich. Ein Familienadministrator erhält keine
+Sonderrechte auf private Inhalte.
+
+E-Mail- und Recovery-Redirects verwenden ausschließlich feste Ziele auf dem
+aktuellen HTTPS-Origin (lokales HTTP ist nur auf Loopback zugelassen). Es gibt
+keinen frei wählbaren `next`-Redirect. JWTs sind signierte Momentaufnahmen und
+bleiben bis zum Ablauf grundsätzlich gültig; kritische serverseitige Vorgänge
+müssen Identität, aktuellen Mitgliedschaftsstatus und Berechtigungen erneut
+prüfen. Profil- und App-RLS erzwingen aktuelle Datenzugriffe.
+
+Familienmitglieder ohne Login bleiben später vom Auth-User getrennte Datensätze.
+Push-Empfänger werden später über Mitglieds-IDs adressiert, mit einer
+expliziten Option „Alle“.
 Diese Grenzen und die Modul-Abhängigkeitsrichtung sind in
 [`docs/architecture/overview.md`](./docs/architecture/overview.md),
 [`docs/architecture/modules.md`](./docs/architecture/modules.md) und
 [`docs/adr/0001-monorepo-boundaries.md`](./docs/adr/0001-monorepo-boundaries.md)
 dokumentiert.
 
-Tests verwenden ausschließlich synthetische UUIDs. `.env` wird ignoriert und
-`.env.example` enthält keine Schlüssel. Es gibt keine Anmeldung, produktiven
-Tabellen, Migrationen, Push-Zustellung oder Hosting-Konfiguration.
+Tests verwenden ausschließlich synthetische Identitäten und UUIDs. `.env` wird
+ignoriert und `.env.example` enthält nur leere Platzhalter. Auth-/Profil-
+Integrationstests laufen gegen eine lokale, wegwerfbare Supabase-Instanz; für
+ein reales Projekt muss die Auth-Redirect-Allowlist zusätzlich konfiguriert
+werden. Es gibt keine Familien-, Rollen- oder Fachdatentabellen, Push-
+Zustellung oder Hosting-Konfiguration.
 
-## Vorbereitung für FH-CX-002
+## Vorbereitung für FH-CX-004
 
 Bereit sind Workspace- und UI-Grundlagen, gemeinsame validierte Verträge,
-abgegrenzte Domain-Pakete, eine Datenschutz-Policy als Beispiel, Supabase-
-Konfigurationsplatzhalter, Capacitor-Konfiguration sowie CI und Testskripte.
-Konkrete Funktionen und Datenmodelle werden in Folgeaufträgen festgelegt.
+Supabase Auth, private Profile mit RLS, sichere Auth-Redirects,
+Auth-/Profil-Integrationstests und ein CI-Job für eine isolierte Supabase-Instanz.
+Der lokale RLS-Testlauf ist noch ausstehend, sofern Supabase CLI/Docker in der
+Entwicklungsumgebung nicht verfügbar sind. Familien, Rollen, Einladungen und
+Familienprofile bleiben Folgeaufträgen vorbehalten.

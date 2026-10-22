@@ -1,7 +1,8 @@
 # Architekturüberblick
 
 FamilyHub ist ein Monorepo mit einer React-Webanwendung und fachlich getrennten
-TypeScript-Paketen. Die Foundation enthält noch keine produktiven Datenflüsse.
+TypeScript-Paketen. Neben Authentifizierung und persönlichem Profil sind
+produktive Fach- und Familiendatenflüsse noch nicht implementiert.
 
 ## Laufzeit und Abhängigkeitsrichtung
 
@@ -42,9 +43,30 @@ Service Worker und Installationsfluss sind nicht umgesetzt. `capacitor.config.ts
 und Capacitor Core/CLI bereiten Android und iOS vor. Native Projekte und
 Plattform-Builds sind nicht Bestandteil dieser Foundation.
 
-## Backend
+## Authentifizierung und Profile
 
-Supabase ist als späteres Backend für PostgreSQL und Supabase Auth vorgesehen.
-`.env.example` enthält nur öffentliche Platzhaltervariablen. Die App initialisiert
-keinen Supabase-Client; es gibt keine Migrationen mit Nutzerdaten, Auth-Flows,
-Secrets oder produktives Hosting.
+Supabase Auth ist die einzige Quelle für Benutzeridentität und Sitzung.
+Der Browserclient nutzt PKCE, Sitzungs-Persistenz, URL-Callback-Erkennung und
+automatische Token-Erneuerung. Die UI rendert geschützte App-Bereiche nur mit
+einer vom Supabase-Client wiederhergestellten oder bestätigten Sitzung.
+Frontend-Zustand ist kein Berechtigungsnachweis für Datenzugriffe.
+
+Die Migration `supabase/migrations/20261022220000_create_user_profiles.sql`
+legt `user_profiles` mit einem `auth.users`-Primär-/Fremdschlüssel und aktivem
+RLS an. Nutzer lesen und erstellen nur das eigene Profil; Änderungen sind auf
+`display_name` beschränkt. `user_id` ist nicht update-berechtigt. Es existiert
+kein Trigger auf `auth.users`: Nach bestätigter Anmeldung erstellt der Client
+das Profil idempotent; fehlgeschlagene Anlage wird angezeigt und kann
+wiederholt werden, ohne den Signup- oder Bestätigungsvorgang zurückzurollen.
+
+Auth-E-Mail und Recovery verwenden fest gebaute `/auth`-Callbacks desselben
+Origin. Die Anwendung akzeptiert keine benutzergesteuerte Rücksprung-URL.
+In Supabase müssen die erlaubten Origins im Auth-Redirect-Allowlist konfiguriert
+sein. Supabase-JWTs bleiben bis zum Ablauf signierte Momentaufnahmen; RLS und
+serverseitige Operationen müssen aktuelle Berechtigungen für kritische Zugriffe
+prüfen und dürfen nicht auf veränderbare User-Metadaten vertrauen.
+
+`.env.example` enthält nur leere Browser- und Testplatzhalter. Browsercode
+verwendet ausschließlich den öffentlichen Anon-/Publishable-Key; Service-Role-
+Keys bleiben auf lokale Testprozesse beschränkt. Es gibt keine Familien-,
+Rollen- oder Fachdatentabellen.

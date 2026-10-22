@@ -25,5 +25,7 @@ erfolgt mit Zod. Ein Lockfile sichert reproduzierbare npm-Installationen.
 - PostgreSQL/RLS bleibt die spätere maßgebliche Sicherheitsgrenze. Die
   TypeScript-Policy ist eine dokumentierte Foundation-Demonstration, keine
   Durchsetzung an der Datenbank.
+- Supabase Auth und das private `user_profiles`-RLS sind in FH-CX-003 ergänzt;
+  ihre begrenzte Sicherheitsgrenze wird in ADR 0002 dokumentiert.
 - Die npm-Versionen werden durch `package-lock.json` exakt aufgelöst; Node 24
   ist die dokumentierte Foundation-Laufzeit.

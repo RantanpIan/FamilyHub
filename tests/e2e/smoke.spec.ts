@@ -1,21 +1,17 @@
 import { expect, test } from "@playwright/test";
 
-test("Foundation navigation is clear and responsive", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByRole("heading", { name: /Alles im Blick/ })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Hauptnavigation" }).first()).toBeVisible();
+test("unauthenticated users cannot access protected app content", async ({ page }) => {
+  await page.goto("/app");
+  await expect(page).toHaveURL(/\/auth$/);
+  await expect(page.getByRole("heading", { name: "Willkommen zurück" })).toBeVisible();
+  await expect(page.getByTestId("app-shell")).toHaveCount(0);
 
-  await page.getByRole("button", { name: /Kalender/ }).first().click();
-  await expect(
-    page.getByRole("heading", { name: "Der Familienkalender ist noch nicht verfügbar" }),
-  ).toBeVisible();
-
-  await page.getByRole("button", { name: /Schule/ }).first().click();
-  await expect(
-    page.getByRole("heading", { name: "Der Schulbereich ist noch nicht verfügbar" }),
-  ).toBeVisible();
+  await page.getByRole("button", { name: "Registrieren" }).click();
+  await expect(page.getByRole("heading", { name: "Ein Konto für euren Alltag" })).toBeVisible();
+  await expect(page.getByLabel("Anzeigename")).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole("navigation", { name: "Hauptnavigation" }).last()).toBeVisible();
-  await expect(page.getByRole("button", { name: /Heute/ }).last()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Ein Konto für euren Alltag" })).toBeVisible();
+  const card = await page.locator(".auth-card").boundingBox();
+  expect(card?.width).toBeLessThanOrEqual(390);
 });

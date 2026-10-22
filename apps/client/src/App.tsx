@@ -1,12 +1,18 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   EmptyState,
+  ErrorState,
+  LoadingState,
   StatusCard,
   type StatusTone,
 } from "@familyhub/ui";
 import { calendarModule } from "@familyhub/calendar-domain";
 import { schoolModule } from "@familyhub/school-domain";
 import { notificationsModule } from "@familyhub/notifications-domain";
+import { AuthScreen } from "./auth/AuthScreen";
+import { useAuth } from "./auth/useAuth";
+import { getCallbackFlow } from "./auth/auth-utils";
+import { ProfileScreen } from "./auth/ProfileScreen";
 
 const navigation = [
   { id: "today", label: "Heute", icon: "◷" },
@@ -122,7 +128,7 @@ function PageContent({ page }: { page: PageId }) {
           ))}
           <StatusCard
             title="Anmeldung und Familien"
-            description="Es gibt noch keine Registrierung und keine persönlichen Familiendaten."
+            description="Ein persönliches Konto ist möglich. Familienverwaltung ist noch nicht verfügbar."
             status="Nicht verfügbar"
             tone="neutral"
             compact
@@ -146,8 +152,129 @@ function PageContent({ page }: { page: PageId }) {
   );
 }
 
+type AppRoute = "/auth" | "/app" | "/profile";
+
+function currentRoute(): AppRoute {
+  if (
+    window.location.pathname === "/auth" ||
+    window.location.pathname === "/app" ||
+    window.location.pathname === "/profile"
+  ) {
+    return window.location.pathname;
+  }
+  return window.location.pathname === "/" ? "/auth" : "/app";
+}
+
 export default function App() {
+  const auth = useAuth();
+  const [route, setRoute] = useState<AppRoute>(currentRoute);
+  const [profileRetrying, setProfileRetrying] = useState(false);
+  const callbackFlow = getCallbackFlow(window.location.search);
+
+  const navigate = useCallback((nextRoute: AppRoute, replace = false) => {
+    if (replace) {
+      window.history.replaceState(null, "", nextRoute);
+    } else {
+      window.history.pushState(null, "", nextRoute);
+    }
+    setRoute(nextRoute);
+  }, []);
+
+  useEffect(() => {
+    const syncRoute = () => setRoute(currentRoute());
+    window.addEventListener("popstate", syncRoute);
+    return () => window.removeEventListener("popstate", syncRoute);
+  }, []);
+
+  useEffect(() => {
+    if (auth.status !== "ready" && auth.status !== "unconfigured") {
+      return;
+    }
+    if (!auth.user && route !== "/auth") {
+      window.history.replaceState(null, "", "/auth");
+    } else if (
+      auth.user &&
+      route === "/auth" &&
+      callbackFlow !== "password-recovery" &&
+      !auth.passwordRecovery
+    ) {
+      window.history.replaceState(null, "", "/app");
+    }
+  }, [auth.status, auth.user, auth.passwordRecovery, callbackFlow, route, navigate]);
+
+  if (auth.status === "loading") {
+    return (
+      <main className="auth-page">
+        <LoadingState label="FamilyHub-Sitzung wird wiederhergestellt" />
+      </main>
+    );
+  }
+
+  if (!auth.user) {
+    return (
+      <AuthScreen
+        initialMode={callbackFlow === "password-recovery" ? "recovery" : "sign-in"}
+        onNavigate={navigate}
+      />
+    );
+  }
+
+  if (auth.profileStatus === "loading" || !auth.profile) {
+    return (
+      <main className="auth-page">
+        {auth.profileStatus === "error" ? (
+          <section className="auth-card">
+            <ErrorState
+              title="Profil konnte nicht geladen werden"
+              description={auth.profileError ?? "Bitte versuche es erneut."}
+            />
+            <button
+              className="primary-button"
+              type="button"
+              disabled={profileRetrying}
+              onClick={() => {
+                setProfileRetrying(true);
+                auth.retryProfile();
+                window.setTimeout(() => setProfileRetrying(false), 800);
+              }}
+            >
+              Erneut versuchen
+            </button>
+          </section>
+        ) : (
+          <LoadingState label="Privates Profil wird geladen" />
+        )}
+      </main>
+    );
+  }
+
+  if (
+    callbackFlow === "password-recovery" ||
+    auth.passwordRecovery
+  ) {
+    return <AuthScreen initialMode="recovery" onNavigate={navigate} />;
+  }
+
+  if (route === "/profile") {
+    return <ProfileScreen onBack={() => navigate("/app")} />;
+  }
+
+  return <AuthenticatedApp onProfile={() => navigate("/profile")} />;
+}
+
+function AuthenticatedApp({ onProfile }: { onProfile: () => void }) {
   const [activePage, setActivePage] = useState<PageId>("today");
+  const [signOutError, setSignOutError] = useState<string | null>(null);
+  const { profile, signOut } = useAuth();
+
+  async function handleSignOut() {
+    setSignOutError(null);
+    try {
+      await signOut();
+    } catch {
+      setSignOutError("Die Abmeldung konnte nicht abgeschlossen werden. Bitte versuche es erneut.");
+    }
+  }
 
   return (
     <div className="app-shell" data-testid="app-shell">
@@ -160,7 +287,7 @@ export default function App() {
         <Navigation activePage={activePage} onNavigate={setActivePage} />
         <div className="sidebar-footer">
           <span className="footer-dot" aria-hidden="true" />
-          <span>Foundation · Funktionen im Aufbau</span>
+          <span>Angemeldet · Funktionen im Aufbau</span>
         </div>
       </aside>
       <div className="main-column">
@@ -169,16 +296,32 @@ export default function App() {
             <span className="brand-mark" aria-hidden="true">f</span>
             <span>family<span className="brand-accent">hub</span></span>
           </div>
-          <span className="topbar-note">Ein geschützter Ort für euren Alltag</span>
-          <span className="avatar-placeholder" aria-label="Keine Anmeldung">FH</span>
+          <span className="topbar-note">Angemeldet als {profile?.display_name}</span>
+          <button className="account-button" type="button" onClick={onProfile}>
+            <span className="avatar-placeholder" aria-hidden="true">
+              {profile?.display_name.slice(0, 1).toUpperCase() ?? "F"}
+            </span>
+            <span className="account-name">{profile?.display_name}</span>
+          </button>
+          <button className="text-button sign-out-button" type="button" onClick={() => void handleSignOut()}>
+            Abmelden
+          </button>
         </header>
         <main className="main-content">
+          {signOutError && <ErrorState description={signOutError} />}
           <PageContent page={activePage} />
+          <section className="family-empty-note" aria-label="Familienzuordnung">
+            <span className="family-empty-icon" aria-hidden="true">⌂</span>
+            <div>
+              <h2>Noch keiner Familie zugeordnet</h2>
+              <p>Dein Konto ist bereit. Die Familienauswahl und Einladungen folgen in einem späteren Auftrag.</p>
+            </div>
+          </section>
           <section className="foundation-note" aria-label="Status">
             <div className="foundation-note-icon" aria-hidden="true">✳</div>
             <div>
               <h2>Schön, dass ihr da seid.</h2>
-              <p>FamilyHub wird Schritt für Schritt aufgebaut. Persönliche Daten werden in dieser Version nicht gespeichert.</p>
+              <p>Deine Profilangaben sind geschützt und werden ausschließlich deinem Konto zugeordnet.</p>
             </div>
           </section>
         </main>

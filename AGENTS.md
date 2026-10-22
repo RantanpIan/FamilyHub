@@ -15,6 +15,8 @@ Prioritäten: einfache und kindgerechte Bedienung, Sicherheit und Datenschutz, Z
 ## 2. Projektstand — besonders wichtig
 
 - **FH-CX-001 wurde im vorherigen Auftrag abgeschlossen.** Bestehende Implementierung bewahren und nicht ohne Anlass neu aufsetzen.
+- **FH-CX-002 wurde abgeschlossen.** Die Auth-/RLS-Test-Fixtures und bestehende Unit-/E2E-Konfiguration als Grundlage für Folgeaufträge erhalten.
+- **FH-CX-003 ist der aktuelle Auftrag.** Auth- und Profilzugriffe nur innerhalb dieses Scopes produktiv anbinden; Familien-/Rollenfunktionen bleiben ausgeschlossen.
 - Vor Änderungen vorhandene Implementierung, offene Änderungen, Tests, Dokumentation und den konkreten aktuellen Auftrag prüfen.
 - Nie eine scheinbar „saubere“ Neuimplementierung über laufende Arbeiten legen. Keine fremden oder uncommitteten Änderungen überschreiben oder verwerfen.
 - **Kalender und Stundenplan** sind die zuerst priorisierten Fachfunktionen. Erforderliche Familienverwaltung/Berechtigungen, Push und Importfunktionen unterstützen diese erste Stufe.

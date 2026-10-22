@@ -1,11 +1,11 @@
-# FH-CX-002 – Test- und Anforderungszuordnung
+# Test- und Anforderungszuordnung
 
 ## Testebenen und Befehle
 
 | Ebene | Ort/Konfiguration | Befehl | Stand |
 | --- | --- | --- | --- |
 | Unit | `tests/unit`, `vitest.config.ts` | `npm run test:unit` | Implementiert; reine Verträge, Beispiel-Policy und UI-Zustände |
-| Integration / PostgreSQL-RLS | `tests/integration` | Noch kein Testbefehl | Nicht implementiert; Voraussetzungen in `tests/integration/README.md` |
+| Integration / PostgreSQL-RLS | `tests/integration`, `vitest.integration.config.ts` | `npm run test:integration` | FH-CX-003 Auth-/Profiltests vorhanden; Lauf erfordert lokale Supabase-Instanz und synthetische Test-Keys |
 | Browser-E2E | `tests/e2e`, `playwright.config.ts` | `npm run test:e2e` | Ein Chromium-Smoke-Test für Navigation und responsive Darstellung |
 | Gesamter vorhandener Testlauf | Root-Skripte | `npm test` | Unit-Tests plus Browser-E2E; enthält keine Integrationstests |
 
@@ -68,3 +68,29 @@ unter normalen synthetischen Auth-Identitäten prüfen, einschließlich direkter
 Ressourcenabfragen mit IDs anderer Familien. Die Service Role darf keine
 Benutzerberechtigung simulieren. Details und noch fehlende Infrastruktur:
 [`tests/integration/README.md`](../../tests/integration/README.md).
+
+## FH-CX-003 – Authentifizierung und Profil
+
+| ID | Abdeckung | Testnachweis / Grenze |
+| --- | --- | --- |
+| AUTH-T01 | Teilweise geprüft | `tests/integration/auth-profile.rls.test.ts` ruft Supabase Auth `signUp` auf und prüft den ausstehenden Bestätigungszustand. Der Test ist lokal ohne Supabase-Umgebung blockiert. |
+| AUTH-T02 | Teilweise geprüft | Supabase verlangt in der lokalen Konfiguration Bestätigung; der Integrationstest bestätigt den synthetischen Nutzer über die Test-Admin-API, nicht durch Öffnen des E-Mail-Links im Browser. Versandzustellung/Link-Klick ist nicht lokal nachgewiesen. |
+| AUTH-T03 | Geprüft, wenn Integrationstest ausgeführt | Gültige Anmeldung wird im Supabase-Integrationstest ausgeführt. |
+| AUTH-T04 | Geprüft, wenn Integrationstest ausgeführt | Falsches Passwort wird über Supabase Auth abgelehnt; UI-Fehler wird ohne rohe Auth-Antwort angezeigt. |
+| AUTH-T05 | Teilweise geprüft | SDK ist mit persistenter PKCE-Sitzung konfiguriert; kein echter Browser-Neulade-Test mit Supabase-Projektkonfiguration ausgeführt. |
+| AUTH-T06 | Geprüft, wenn Integrationstest ausgeführt | Lokales `signOut` und leere Sitzung werden im Integrationstest geprüft. |
+| AUTH-T07 | Geprüft | `tests/e2e/smoke.spec.ts` ruft `/app` ohne Sitzung auf und bestätigt Weiterleitung zur Anmeldung ohne gerenderten geschützten App-Inhalt. |
+| AUTH-T08 | Teilweise geprüft | Reset-Anfrage und Recovery-Update sind implementiert; E-Mail-Versand und Recovery-Link-Klick sind mangels Supabase-/SMTP-Umgebung nicht ausgeführt. |
+| AUTH-T09 | Geprüft, wenn Integrationstest ausgeführt | Profil-Update des eigenen Anzeigenamens wird in der echten RLS-Testinstanz ausgeführt. |
+| AUTH-T10 | RLS-Test vorhanden; lokal blockiert | Zwei echte synthetische Auth-Identitäten lesen gegen dieselbe PostgreSQL-RLS-Grenze. |
+| AUTH-T11 | RLS-Test vorhanden; lokal blockiert | Fremdes Profil-Update bleibt ohne sichtbare Zeile; zusätzlich wird `user_id`-Update direkt an PostgREST abgewiesen. |
+| AUTH-T12 | Geprüft, wenn Integrationstest ausgeführt | Zweites Profil mit identischer Auth-UUID wird durch den Primärschlüssel abgewiesen. |
+| AUTH-T13 | Teilweise geprüft | Unit-Tests prüfen feste same-origin Callback-URLs und lehnen Nicht-HTTPS-/manipulierte Origin-Strings ab. Projekt-Allowlist ist zusätzlich extern zu konfigurieren. |
+| AUTH-T14 | UI implementiert; E2E mit Auth blockiert | Angemeldeter Nutzer ohne Familie erhält einen definierten Leerzustand; ein Browser-Test mit realer Supabase-Sitzung ist nicht ausgeführt. |
+| AUTH-T15 | Geprüft | Bestehende Unit-/Smoke-Tests sind erweitert und laufen lokal; GitHub Actions muss den neuen Commit noch ausführen. |
+
+Die Integrationstests sind keine erfolgreichen Testläufe, solange die lokale
+Supabase-Instanz nicht gestartet und `npm run test:integration` erfolgreich
+ausgeführt wurde. Die GitHub-Actions-`auth-rls`-Job-Konfiguration startet eine
+isolierte Supabase-Instanz; ihr Remote-Ergebnis für diesen uncommitteten Stand
+steht noch aus.

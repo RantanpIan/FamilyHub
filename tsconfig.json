@@ -21,9 +21,11 @@
     "apps/client/src",
     "packages/*/src",
     "tests/unit",
+    "tests/integration",
     "tests/e2e",
     "vite.config.ts",
     "vitest.config.ts",
+    "vitest.integration.config.ts",
     "playwright.config.ts",
     "capacitor.config.ts"
   ],

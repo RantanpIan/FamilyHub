@@ -1,7 +1,8 @@
 # Integrationstests
 
-Für FH-CX-002 sind noch keine Integrationstests implementiert. Es gibt daher
-bewusst weder einen leeren Testlauf noch eine Erfolgsmeldung für diese Ebene.
+Für FH-CX-003 gibt es Auth-/Profil-Integrationstests gegen eine echte lokale
+Supabase-/PostgreSQL-Instanz. Ein Testlauf ohne laufende Instanz ist kein
+Erfolgsnachweis.
 
 Vorgesehene Voraussetzungen für spätere Supabase-/PostgreSQL-RLS-Tests:
 
@@ -10,9 +11,14 @@ Vorgesehene Voraussetzungen für spätere Supabase-/PostgreSQL-RLS-Tests:
 - Versionierte Migrationen und Seeds ausschließlich mit synthetischen Daten.
 - Eigene synthetische Auth-Identitäten für die Testfamilien; Tests müssen mit
   normalen Benutzerrollen laufen und dürfen Service-Role-Zugriffe nicht als
-  Berechtigungsnachweis verwenden.
-- Explizite Positiv-, Negativ-, Cross-Family-, Privat-, Mitgliedschafts- und
-  Widerrufsprüfungen direkt gegen PostgreSQL/RLS.
+  Berechtigungsnachweis verwenden. Service Role wird im Testsuite nur zur
+  Erzeugung/Löschung synthetischer Auth-Nutzer und zur unabhängigen
+  Ergebnisprüfung verwendet.
+- Explizite Profil-Eigentümer-, Fremdzugriffs-, Spalten-, Eindeutigkeits- und
+  Auth-Flow-Prüfungen direkt gegen PostgREST/RLS.
 
 Vorhandene Unit-Tests für die reine TypeScript-Policy ersetzen diese Prüfungen
-nicht. Produktive Tabellen oder Policies werden hier nicht angelegt.
+nicht. Der Befehl lautet `npm run test:integration`. Ohne die drei erforderlichen
+lokalen `SUPABASE_TEST_*`-Variablen bricht er mit einem klaren Hinweis ab, statt einen
+übersprungenen Test als Erfolg auszugeben. Produktive Tabellen oder Policies
+werden hier nicht angelegt.
