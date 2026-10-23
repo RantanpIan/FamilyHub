@@ -41,7 +41,8 @@ authentifizierten Benutzerclients. Service Role wird ausschließlich zum
 Erzeugen/Löschen synthetischer Nutzer, zum Seeding der Profile/Mitgliedschaften
 und zur unabhängigen Prüfung von Datenintegrität eingesetzt. Sie simuliert
 keine Endbenutzerrechte. Die Suite umfasst ACL-T01 bis ACL-T16; sie wurde lokal
-noch nicht ausgeführt, solange Docker-Daemon und Supabase CLI fehlen.
+gegen die isolierte lokale Supabase-Instanz ausgeführt; alle 16 ACL-Tests
+bestanden.
 
 Der GitHub-Actions-Job `auth-rls` startet eine lokale, wegwerfbare Supabase-
 Instanz und führt `supabase db reset --local` aus, damit sämtliche versionierten
@@ -67,16 +68,39 @@ INSERT-Policy `Members can create resources for their linked profile`; deren
 `WITH CHECK` verlangt eine gültige Sichtbarkeit und
 `resource_actor_is_active_member(family_id, owner_member_id) = true`.
 
-Der damalige Actions-Log enthält keinen PostgREST-Fehlercode, keine
-`auth.uid()`-Diagnostik und keine Ausgabe der Policy-Prüfung. Daher belegt er
-die Policy-Verletzung, aber nicht, ob im konkreten Lauf Sitzung oder
-Mitgliedschafts-Fixture abwichen. Der Integrationstest prüft jetzt vor jedem
-Fixture-INSERT über den normalen Benutzerclient die erwartete Auth-Identität
-und genau dieselbe auth.uid()-basierte Mitgliedschaftsfunktion, ohne Tokens
-auszugeben. Fehler beim INSERT nennen nur den Fixture-Namen, synthetische
-Familien-/Mitglieds-IDs und den PostgREST-Fehlercode. ACL-T10 prüft zusätzlich,
+Der anschließende Actions-Lauf #8 bestätigte, dass beide Vorprüfungen
+erfolgreich waren, während der INSERT weiterhin mit `42501` scheiterte. Eine
+lokale isolierte Differentialprüfung ergab: Der unmittelbare INSERT ohne
+`RETURNING` gelang, und derselbe authentifizierte Eigentümer konnte die neue
+Zeile unmittelbar danach per SELECT lesen. Der äquivalente INSERT mit
+`.select(...).single()` scheiterte.
+
+Ursache war die SELECT-Policy `Authorized members can read resources`: Sie
+rief `can_read_resource(id)` auf, das für die Berechtigungsprüfung die Tabelle
+`resources` erneut abfragt. Bei `INSERT ... RETURNING` kann diese Abfrage die
+gerade eingefügte Zeile innerhalb des Statements nicht zuverlässig als
+sichtbare Zeile verwenden. Die neue additive Migration
+`20261023145000_fix_resource_returning_select_policy.sql` wertet deshalb die
+Zeilenwerte direkt über eine eng begrenzte, `SECURITY DEFINER`-Hilfsfunktion
+im nicht exponierten Schema `private` aus. Familienstatus, aktive
+Mitgliedschaft, Eigentümerschaft, familienweite Sichtbarkeit und aktive
+Lesefreigaben bleiben dieselben Bedingungen. INSERT-Policy, Schreibrechte,
+Grants und bestehende Migration werden nicht geändert. ACL-T10 prüft außerdem,
 dass ein nicht verknüpftes Mitglied auch innerhalb derselben Familie keine
-Ressource anlegen kann. Die Migration und ihre Policies bleiben unverändert.
+Ressource anlegen kann.
+
+Bei der vollständigen lokalen ACL-Suite wurde zusätzlich sichtbar, dass der
+stale-version-Fall in ACL-T14 `40001` zurückgab. PostgREST wiederholte diesen
+als Serialisierungsfehler klassifizierten Anwendungsfehler; dadurch kam es zu
+wiederholten RPC-Aufrufen und einem Deadlock vor dem anschließenden
+Lesetest. Die additive Migration
+`20261023150000_use_application_conflict_sqlstate.sql` verwendet für diesen
+fachlichen Versionskonflikt jetzt `P0001`, ohne die Optimistic-Lock-Prüfung
+oder Autorisierung zu verändern. Der Regressionstest erwartet diesen
+Anwendungsfehlercode. Nach beiden Korrekturmigrationen bestanden lokal alle
+36 Auth-, Familien- und Ressourcen-RLS-Integrationstests, darunter alle 16
+ACL-Fälle. Zusätzlich bestanden 38 Unit-Tests und alle drei Playwright-Tests
+gegen dieselbe lokale Wegwerf-Supabase-Instanz.
 
 Im fehlgeschlagenen FH-CX-004-CI-Lauf #5 nutzte der Negativtest für fremde Familien versehentlich
 ein Konto, das laut Mehrfamilien-Fixture auch Familie B angehörte; die Policy

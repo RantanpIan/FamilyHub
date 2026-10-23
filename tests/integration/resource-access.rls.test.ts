@@ -662,12 +662,11 @@ describe("FamilyHub resource access PostgreSQL RLS", () => {
       p_visibility: "family",
       p_expected_version: sharedA.version,
     });
-    expect(staleUpdate.error?.code).toBe("40001");
+    expect(staleUpdate.error?.code).toBe("P0001");
 
     const administratorRead = await readResource(clientAdminA, sharedA.id);
     expect(administratorRead.error).toBeNull();
     expect(administratorRead.data).toEqual([]);
-
     const ownerRead = await readResource(clientOwnerA, sharedA.id);
     expect(ownerRead.error).toBeNull();
     expect(ownerRead.data).toHaveLength(1);

@@ -58,5 +58,17 @@ cloud project. Do not modify or rerun them as a correction; the new resource
 model is a separate additive migration and must only be applied in disposable
 test environments during this task.
 
+`20261023145000_fix_resource_returning_select_policy.sql` is an additive
+correction for authenticated `INSERT ... RETURNING`: the SELECT policy evaluates
+the current resource row values directly rather than re-querying the row being
+inserted. It retains active-family, active-membership, owner, family-visibility
+and read-grant checks.
+
+`20261023150000_use_application_conflict_sqlstate.sql` preserves the
+optimistic-version check for visibility changes but reports stale versions as
+an application error (`P0001`), not SQLSTATE `40001` which denotes a database
+serialization failure. This prevents the PostgREST transaction layer from
+retrying a known application-level conflict.
+
 Later application tables must keep family data tenant-scoped and use
 PostgreSQL Row Level Security (RLS). Do not store real personal data in tests.
