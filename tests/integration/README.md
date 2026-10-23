@@ -55,6 +55,29 @@ fehlgeschlagenen Job und nicht zu einem grünen Lauf. Sämtliche
 privilegierten Testschlüssel werden pro Lauf von der lokalen Supabase-Instanz
 ausgegeben; Cloud-Projekt-Zugangsdaten werden nicht verwendet.
 
+## FH-CX-005-FIX-01 – CI-Lauf #7
+
+Der Actions-Log zeigt, dass der Hook `beforeAll` vor Ausführung der ACL-Fälle
+mit einer RLS-Verletzung auf `resources` abbricht. Der erste Ressourcen-INSERT
+im Hook ist `privateA`: ein unmittelbarer `.from("resources").insert(...)`
+über `clientOwnerA`, nicht ein RPC und nicht der Service-Role-Client. Das
+Fixture erwartet dafür den angemeldeten synthetischen Benutzer `ownerA`, die
+Familie A und deren Mitglied `ownerAMemberId`. Betroffen ist die
+INSERT-Policy `Members can create resources for their linked profile`; deren
+`WITH CHECK` verlangt eine gültige Sichtbarkeit und
+`resource_actor_is_active_member(family_id, owner_member_id) = true`.
+
+Der damalige Actions-Log enthält keinen PostgREST-Fehlercode, keine
+`auth.uid()`-Diagnostik und keine Ausgabe der Policy-Prüfung. Daher belegt er
+die Policy-Verletzung, aber nicht, ob im konkreten Lauf Sitzung oder
+Mitgliedschafts-Fixture abwichen. Der Integrationstest prüft jetzt vor jedem
+Fixture-INSERT über den normalen Benutzerclient die erwartete Auth-Identität
+und genau dieselbe auth.uid()-basierte Mitgliedschaftsfunktion, ohne Tokens
+auszugeben. Fehler beim INSERT nennen nur den Fixture-Namen, synthetische
+Familien-/Mitglieds-IDs und den PostgREST-Fehlercode. ACL-T10 prüft zusätzlich,
+dass ein nicht verknüpftes Mitglied auch innerhalb derselben Familie keine
+Ressource anlegen kann. Die Migration und ihre Policies bleiben unverändert.
+
 Im fehlgeschlagenen FH-CX-004-CI-Lauf #5 nutzte der Negativtest für fremde Familien versehentlich
 ein Konto, das laut Mehrfamilien-Fixture auch Familie B angehörte; die Policy
 gab die Daten daher zulässigerweise zurück. Der korrigierte Test verwendet

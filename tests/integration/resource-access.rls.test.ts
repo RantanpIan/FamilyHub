@@ -16,6 +16,9 @@ function requiredEnvironmentVariable(name: string): string {
 const supabaseUrl = requiredEnvironmentVariable("SUPABASE_TEST_URL");
 const anonKey = requiredEnvironmentVariable("SUPABASE_TEST_ANON_KEY");
 const serviceRoleKey = requiredEnvironmentVariable("SUPABASE_TEST_SERVICE_ROLE_KEY");
+if (anonKey === serviceRoleKey) {
+  throw new Error("RLS-Testclients benötigen getrennte Anon- und Service-Role-Keys.");
+}
 type TestClient = SupabaseClient<Database, "public">;
 type SyntheticUser = { id: string; email: string };
 type ResourceRow = {
@@ -82,6 +85,12 @@ async function signIn(user: SyntheticUser): Promise<TestClient> {
   if (error) {
     throw error;
   }
+  const { data, error: userError } = await client.auth.getUser();
+  if (userError || data.user?.id !== user.id) {
+    throw new Error(
+      `Synthetischer Benutzerclient hat keine Sitzung für die erwartete Auth-Identität (${userError?.code ?? `expected=${user.id}; actual=${data.user?.id ?? "none"}`}).`,
+    );
+  }
   return client;
 }
 
@@ -144,8 +153,35 @@ async function createResource(
   client: TestClient,
   familyId: string,
   ownerMemberId: string,
+  expectedOwnerUserId: string,
+  fixtureName: string,
   visibility?: "private" | "family",
 ): Promise<ResourceRow> {
+  const { data: userData, error: userError } = await client.auth.getUser();
+  if (userError || userData.user?.id !== expectedOwnerUserId) {
+    throw new Error(
+      `Ressourcen-Fixture "${fixtureName}" hat nicht die erwartete authentifizierte Benutzeridentität (${userError?.code ?? `expected=${expectedOwnerUserId}; actual=${userData.user?.id ?? "none"}`}).`,
+    );
+  }
+
+  const { data: isLinkedOwner, error: membershipError } = await client.rpc(
+    "resource_actor_is_active_member",
+    {
+      p_family_id: familyId,
+      p_member_id: ownerMemberId,
+    },
+  );
+  if (membershipError) {
+    throw new Error(
+      `Ressourcen-Fixture "${fixtureName}" konnte die INSERT-Voraussetzung für Familie und Eigentümer nicht prüfen (${membershipError.code ?? "unbekannter Fehler"}).`,
+    );
+  }
+  if (!isLinkedOwner) {
+    throw new Error(
+      `Ressourcen-Fixture "${fixtureName}" ist laut auth.uid()-basierter INSERT-Voraussetzung nicht verknüpft (family=${familyId}; ownerMember=${ownerMemberId}).`,
+    );
+  }
+
   const { data, error } = await client
     .from("resources")
     .insert({
@@ -157,7 +193,9 @@ async function createResource(
     .select("id, family_id, owner_member_id, visibility, version")
     .single();
   if (error) {
-    throw error;
+    throw new Error(
+      `Ressourcen-Fixture "${fixtureName}" konnte für Familie ${familyId} und Eigentümer-Mitglied ${ownerMemberId} nicht angelegt werden (PostgREST ${error.code ?? "unbekannt"}).`,
+    );
   }
   return data;
 }
@@ -272,40 +310,58 @@ beforeAll(async () => {
     role: "adult",
   });
 
-  privateA = await createResource(clientOwnerA, familyAId, ownerAMemberId);
+  privateA = await createResource(
+    clientOwnerA,
+    familyAId,
+    ownerAMemberId,
+    ownerA.id,
+    "private A",
+  );
   deletableA = await createResource(
     clientOwnerA,
     familyAId,
     ownerAMemberId,
+    ownerA.id,
+    "deletable A",
   );
   sharedA = await createResource(
     clientOwnerA,
     familyAId,
     ownerAMemberId,
+    ownerA.id,
+    "shared A",
     "family",
   );
   grantedA = await createResource(
     clientOwnerA,
     familyAId,
     ownerAMemberId,
+    ownerA.id,
+    "granted A",
     "private",
   );
   managedGrantA = await createResource(
     clientOwnerA,
     familyAId,
     ownerAMemberId,
+    ownerA.id,
+    "managed grant A",
     "private",
   );
   privateB = await createResource(
     clientOwnerB,
     familyBId,
     ownerBMemberId,
+    ownerB.id,
+    "private B",
     "private",
   );
   sharedB = await createResource(
     clientOwnerB,
     familyBId,
     ownerBMemberId,
+    ownerB.id,
+    "shared B",
     "family",
   );
 });
@@ -331,6 +387,10 @@ describe("FamilyHub resource access PostgreSQL RLS", () => {
     expect(result.error).toBeNull();
     expect(result.data).toHaveLength(1);
     expect(result.data?.[0]?.visibility).toBe("private");
+    expect(result.data?.[0]).toMatchObject({
+      family_id: familyAId,
+      owner_member_id: ownerAMemberId,
+    });
     await assertCanRead(clientOwnerA, privateA.id, true);
     expect(await clientOwnerA.rpc("can_update_resource", {
       p_resource_id: privateA.id,
@@ -476,6 +536,14 @@ describe("FamilyHub resource access PostgreSQL RLS", () => {
       visibility: "private",
     });
     expect(forged.error).not.toBeNull();
+
+    const unlinkedOwner = await clientAdminA.from("resources").insert({
+      family_id: familyAId,
+      owner_member_id: managedChildMemberId,
+      resource_type: "calendar_event",
+      visibility: "private",
+    });
+    expect(unlinkedOwner.error).not.toBeNull();
 
     const forgedGrant = await clientOwnerA.from("resource_grants").insert({
       resource_id: privateA.id,
