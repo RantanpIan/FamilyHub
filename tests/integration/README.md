@@ -29,3 +29,11 @@ Mitglieder-UI wird separat in Playwright gegen eine lokale Supabase-Instanz
 ausgeführt; ohne `SUPABASE_E2E_*`- und `VITE_SUPABASE_*`-Werte werden diese
 Browserfälle explizit übersprungen und gelten nicht als nachgewiesen.
 Produktive Tabellen oder Policies werden hier nicht angelegt.
+
+In FH-CX-004-CI-Lauf #5 nutzte der Negativtest für fremde Familien versehentlich
+ein Konto, das laut Mehrfamilien-Fixture auch Familie B angehörte; die Policy
+gab die Daten daher zulässigerweise zurück. Der korrigierte Test verwendet
+einen ausschließlich in Familie A aktiven, angemeldeten Erwachsenen und
+verifiziert dessen `auth.uid()` sowie den positiven Zugriff auf die eigene
+Familie vor den Fremd-ID-Prüfungen. Es war keine Datenbank-Policy-Korrektur
+erforderlich.

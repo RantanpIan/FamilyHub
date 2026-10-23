@@ -308,26 +308,83 @@ describe("FamilyHub families and memberships PostgreSQL RLS", () => {
   });
 
   it("FAM-T10, T11, T18: foreign and unknown family IDs reveal no member rows", async () => {
-    const foreignRead = await clientA
+    const { data: currentUserData, error: currentUserError } =
+      await clientAdultA.auth.getUser();
+    expect(currentUserError).toBeNull();
+    expect(currentUserData.user?.id).toBe(adultA.id);
+
+    const { data: ownFamilies, error: ownFamiliesError } =
+      await clientAdultA.rpc("list_my_families");
+    expect(ownFamiliesError).toBeNull();
+    expect(ownFamilies?.map((family) => family.family_id)).toContain(familyAId);
+    expect(ownFamilies?.map((family) => family.family_id)).not.toContain(familyBId);
+
+    const ownRead = await clientAdultA
+      .from("family_members")
+      .select("id")
+      .eq("family_id", familyAId);
+    expect(ownRead.error).toBeNull();
+    expect(ownRead.data).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: expect.any(String) })]),
+    );
+
+    const foreignRead = await clientAdultA
       .from("family_members")
       .select("id")
       .eq("family_id", familyBId);
     expect(foreignRead.error).toBeNull();
     expect(foreignRead.data).toEqual([]);
 
+    const foreignInsert = await clientAdultA
+      .from("family_members")
+      .insert({
+        family_id: familyBId,
+        display_name: "Synthetic unauthorized foreign member",
+        member_type: "child",
+      });
+    expect(foreignInsert.error).not.toBeNull();
+
+    const foreignUpdate = await clientAdultA
+      .from("family_members")
+      .update({ display_name: "Synthetic unauthorized foreign update" })
+      .eq("id", familyBLinkedMemberId)
+      .select("id");
+    expect(foreignUpdate.error).toBeNull();
+    expect(foreignUpdate.data).toEqual([]);
+
+    const foreignDelete = await clientAdultA
+      .from("family_members")
+      .delete()
+      .eq("id", familyBLinkedMemberId)
+      .select("id");
+    expect(foreignDelete.error).not.toBeNull();
+
+    const { data: foreignMemberAfterWrites, error: verificationError } =
+      await adminClient
+        .from("family_members")
+        .select("id, display_name, family_id")
+        .eq("id", familyBLinkedMemberId)
+        .single();
+    expect(verificationError).toBeNull();
+    expect(foreignMemberAfterWrites).toMatchObject({
+      id: familyBLinkedMemberId,
+      family_id: familyBId,
+      display_name: familyB.members.adult.label,
+    });
+
     const unknownFamilyId = randomUUID();
-    const unknownRead = await clientA
+    const unknownRead = await clientAdultA
       .from("family_members")
       .select("id")
       .eq("family_id", unknownFamilyId);
     expect(unknownRead.error).toBeNull();
     expect(unknownRead.data).toEqual([]);
 
-    const foreignList = await clientA.rpc("list_family_members", {
+    const foreignList = await clientAdultA.rpc("list_family_members", {
       p_family_id: familyBId,
     });
     expect(foreignList.error?.code).toBe("42501");
-    const unknownList = await clientA.rpc("list_family_members", {
+    const unknownList = await clientAdultA.rpc("list_family_members", {
       p_family_id: unknownFamilyId,
     });
     expect(unknownList.error?.code).toBe("42501");

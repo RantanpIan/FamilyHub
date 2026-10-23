@@ -68,7 +68,10 @@ test.describe("family onboarding with a disposable Supabase backend", () => {
       await page.getByLabel("Familienname").fill("Synthetic E2E family");
       await page.getByRole("button", { name: "Familie erstellen" }).click();
       await expect(page.getByTestId("app-shell")).toBeVisible();
-      await expect(page.getByText("Synthetic E2E family")).toBeVisible();
+      await page.getByRole("button", { name: "Mehr" }).click();
+      await expect(
+        page.getByRole("heading", { name: "Synthetic E2E family" }),
+      ).toBeVisible();
     });
   });
 
@@ -90,12 +93,15 @@ test.describe("family onboarding with a disposable Supabase backend", () => {
       await page.getByRole("button", { name: "Mitglied hinzufügen" }).click();
 
       const member = page.locator(".family-member-card").filter({
-        hasText: "Synthetic E2E managed child",
+        hasText: "Verwaltetes Profil · kein Login",
       });
+      await expect(member.getByText("Synthetic E2E managed child")).toBeVisible();
       await expect(member.getByText("Verwaltetes Profil · kein Login")).toBeVisible();
       await member.getByLabel("Anzeigename").fill("Synthetic E2E child updated");
       await member.getByRole("button", { name: "Speichern" }).click();
-      await expect(member.getByText("Synthetic E2E child updated")).toBeVisible();
+      await expect(member.locator(".family-member-summary strong")).toHaveText(
+        "Synthetic E2E child updated",
+      );
     });
   });
 });

@@ -90,6 +90,28 @@ Benutzerberechtigung simulieren. Details und noch fehlende Infrastruktur:
 | AUTH-T14 | UI implementiert; E2E-Test vorhanden, lokale Ausführung blockiert | Authentifizierter Familien-Onboarding-Test prüft den definierten Zustand ohne Familienzuordnung (`tests/e2e/family-management.spec.ts`); lokal mangels Supabase-Konfiguration übersprungen, FH-CX-004-CI-Nachweis steht aus. |
 | AUTH-T15 | Teilweise geprüft | 36 Unit-Tests und ein lokaler Playwright-Smoke-Test bestanden; zwei Familien-E2E-Tests waren lokal mangels Supabase-Konfiguration übersprungen. Die dokumentierten GitHub-Actions-Ergebnisse beziehen sich auf FH-CX-003 und enthalten sieben Supabase-Integrationstests. |
 
+Die fehlgeschlagene CI-Ausführung #5 wurde analysiert. FAM-T10/T11/T18 hatte
+versehentlich `clientA` (Familie-A-Administrator) für den Negativtest
+verwendet, obwohl das Fixture denselben Account im FAM-T16-Szenario zusätzlich
+als aktives Mitglied von Familie B anlegt. Die RLS-Abfrage gab deshalb korrekt
+die zwei Mitglieder von Familie B zurück. Der Negativtest verwendet nun das
+separate, authentifizierte `adultA`-Konto, prüft dessen `auth.uid()` und
+Mitgliedschaftsliste, bestätigt positiven Zugriff auf Familie A und prüft
+anschließend Lesen, Einfügen, Ändern und Löschen fremder Mitglieder sowie
+fremde/unbekannte IDs über denselben Nichtmitgliedskontext. Die privilegierte
+Testrolle dient ausschließlich dem Fixture-Setup und der unabhängigen Prüfung,
+dass die verweigerten Schreibversuche nichts verändert haben.
+
+Playwright schlug unabhängig davon an zwei Testassertions fehl. Der
+Familienname im ersten Test wurde mit `getByText` aus einem nicht aktiven
+`<option>` eines Dropdowns ausgewählt und war deshalb verborgen; der Test
+wechselt jetzt in „Mehr“ und prüft die sichtbare Familienüberschrift. Im
+Mitglieder-Test blieb die Locator-Filterung auf dem alten Anzeigenamen, der
+nach erfolgreichem Speichern ersetzt wird; der Locator verwendet nun den
+stabilen Status „Verwaltetes Profil · kein Login“ und prüft danach den
+aktualisierten Namen in der Profilzeile. Es wurde keine Policy gelockert und
+keine Migration geändert.
+
 Die lokale Ausführung von `npm run test:integration` ist in der
 Entwicklungsumgebung mangels Supabase CLI und `SUPABASE_TEST_*`-Variablen
 blockiert. Der GitHub-Actions-Job startet jedoch eine isolierte Supabase-Instanz;
