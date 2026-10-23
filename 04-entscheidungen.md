@@ -30,6 +30,7 @@
 | FH-DEC-021 | Die R1-Planung umfasst 34 Codex-Aufträge, FH-CX-001 bis 034 | Vorherige Planung bekannt | Original-Backlog zur vollständigen Zuordnung nachtragen |
 | FH-DEC-022 | FH-CX-001 wurde abgeschlossen und die Foundation ist Basis für FH-CX-002 | Durch vorherigen Auftragsabschluss bestätigt | Bestehende Foundation bewahren und Folgeaufträge darauf aufbauen |
 | FH-DEC-023 | FH-CX-002 ist abgeschlossen; FH-CX-003 baut auf dem grünen CI-Stand `58a6fa1` auf | Nutzer-Screenshot des GitHub-Actions-Laufs | Testfundament bleibt erhalten; neue RLS-Integration wird separat geprüft |
+| FH-DEC-024 | FH-CX-004 verwendet einen transaktionalen, idempotenten `create_family`-RPC; spätere Mitgliedsänderungen laufen über RLS-geschützte Tabellenzugriffe | FH-CX-004-Anforderung für atomare Erstanlage und serverseitige Autorisierung | Kein Auth-Trigger oder Service-Role-Key im Client; Familienkontext bleibt eine nicht vertrauenswürdige Anfrage |
 
 ## 2. Konkretisierte Regeln – keine neuen Baseline-Entscheidungen
 

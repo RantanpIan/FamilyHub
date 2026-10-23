@@ -55,6 +55,49 @@ export type NewPassword = z.infer<typeof NewPasswordSchema>;
 export type UpdateProfileInput = z.infer<typeof UpdateProfileInputSchema>;
 export type UserProfile = z.infer<typeof UserProfileSchema>;
 
+export const FamilyNameSchema = z.string().trim().min(1).max(80);
+export const FamilyRoleSchema = z.enum(["family_admin", "adult", "child"]);
+export const FamilyMemberTypeSchema = z.enum(["adult", "child"]);
+export const FamilyMemberStatusSchema = z.enum(["active", "inactive"]);
+
+export const CreateFamilyInputSchema = z.object({
+  name: FamilyNameSchema,
+  requestId: z.uuid(),
+}).strict();
+
+export const CreateManagedMemberInputSchema = z.object({
+  displayName: z.string().trim().min(1).max(80),
+  memberType: FamilyMemberTypeSchema,
+}).strict();
+
+export const UpdateManagedMemberInputSchema = z.object({
+  displayName: z.string().trim().min(1).max(80),
+}).strict();
+
+export const FamilySummarySchema = z.object({
+  family_id: FamilyIdSchema,
+  family_name: FamilyNameSchema,
+  member_id: FamilyMemberIdSchema,
+  role: FamilyRoleSchema,
+}).strict();
+
+export const FamilyMemberSchema = z.object({
+  family_id: FamilyIdSchema,
+  member_id: FamilyMemberIdSchema,
+  display_name: z.string().min(1).max(80),
+  member_type: FamilyMemberTypeSchema,
+  status: FamilyMemberStatusSchema,
+  has_login: z.boolean(),
+}).strict();
+
+export type FamilyRole = z.infer<typeof FamilyRoleSchema>;
+export type FamilyMemberType = z.infer<typeof FamilyMemberTypeSchema>;
+export type CreateFamilyInput = z.infer<typeof CreateFamilyInputSchema>;
+export type CreateManagedMemberInput = z.infer<typeof CreateManagedMemberInputSchema>;
+export type UpdateManagedMemberInput = z.infer<typeof UpdateManagedMemberInputSchema>;
+export type FamilySummary = z.infer<typeof FamilySummarySchema>;
+export type FamilyMember = z.infer<typeof FamilyMemberSchema>;
+
 export const NotificationRecipientSelectionSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("all") }).strict(),
   z.object({

@@ -13,6 +13,9 @@ import { AuthScreen } from "./auth/AuthScreen";
 import { useAuth } from "./auth/useAuth";
 import { getCallbackFlow } from "./auth/auth-utils";
 import { ProfileScreen } from "./auth/ProfileScreen";
+import { FamilyOnboarding } from "./family/FamilyOnboarding";
+import { FamilyManagement } from "./family/FamilyManagement";
+import { useFamily } from "./family/useFamily";
 
 const navigation = [
   { id: "today", label: "Heute", icon: "◷" },
@@ -126,13 +129,6 @@ function PageContent({ page }: { page: PageId }) {
               compact
             />
           ))}
-          <StatusCard
-            title="Anmeldung und Familien"
-            description="Ein persönliches Konto ist möglich. Familienverwaltung ist noch nicht verfügbar."
-            status="Nicht verfügbar"
-            tone="neutral"
-            compact
-          />
         </div>
       </section>
     );
@@ -167,6 +163,7 @@ function currentRoute(): AppRoute {
 
 export default function App() {
   const auth = useAuth();
+  const family = useFamily();
   const [route, setRoute] = useState<AppRoute>(currentRoute);
   const [profileRetrying, setProfileRetrying] = useState(false);
   const callbackFlow = getCallbackFlow(window.location.search);
@@ -259,6 +256,38 @@ export default function App() {
     return <ProfileScreen onBack={() => navigate("/app")} />;
   }
 
+  if (family.status === "loading") {
+    return (
+      <main className="auth-page">
+        <LoadingState label="Familienbereich wird geladen" />
+      </main>
+    );
+  }
+
+  if (family.status === "error") {
+    return (
+      <main className="auth-page">
+        <section className="auth-card">
+          <ErrorState
+            title="Familien konnten nicht geladen werden"
+            description={family.error ?? "Bitte versuche es erneut."}
+          />
+          <button
+            className="primary-button"
+            type="button"
+            onClick={() => void family.refreshFamilies()}
+          >
+            Erneut versuchen
+          </button>
+        </section>
+      </main>
+    );
+  }
+
+  if (family.families.length === 0) {
+    return <FamilyOnboarding />;
+  }
+
   return <AuthenticatedApp onProfile={() => navigate("/profile")} />;
 }
 
@@ -266,6 +295,7 @@ function AuthenticatedApp({ onProfile }: { onProfile: () => void }) {
   const [activePage, setActivePage] = useState<PageId>("today");
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const { profile, signOut } = useAuth();
+  const family = useFamily();
 
   async function handleSignOut() {
     setSignOutError(null);
@@ -296,6 +326,23 @@ function AuthenticatedApp({ onProfile }: { onProfile: () => void }) {
             <span className="brand-mark" aria-hidden="true">f</span>
             <span>family<span className="brand-accent">hub</span></span>
           </div>
+          {family.selectedFamily && (
+            <label className="family-context-label topbar-family-context">
+              Familie
+              <select
+                aria-label="Aktive Familie"
+                value={family.selectedFamily.family_id}
+                disabled={family.families.length < 2}
+                onChange={(event) => family.selectFamily(event.currentTarget.value)}
+              >
+                {family.families.map((item) => (
+                  <option key={item.family_id} value={item.family_id}>
+                    {item.family_name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <span className="topbar-note">Angemeldet als {profile?.display_name}</span>
           <button className="account-button" type="button" onClick={onProfile}>
             <span className="avatar-placeholder" aria-hidden="true">
@@ -309,14 +356,11 @@ function AuthenticatedApp({ onProfile }: { onProfile: () => void }) {
         </header>
         <main className="main-content">
           {signOutError && <ErrorState description={signOutError} />}
-          <PageContent page={activePage} />
-          <section className="family-empty-note" aria-label="Familienzuordnung">
-            <span className="family-empty-icon" aria-hidden="true">⌂</span>
-            <div>
-              <h2>Noch keiner Familie zugeordnet</h2>
-              <p>Dein Konto ist bereit. Die Familienauswahl und Einladungen folgen in einem späteren Auftrag.</p>
-            </div>
-          </section>
+          {activePage === "more" ? (
+            <FamilyManagement />
+          ) : (
+            <PageContent page={activePage} />
+          )}
           <section className="foundation-note" aria-label="Status">
             <div className="foundation-note-icon" aria-hidden="true">✳</div>
             <div>

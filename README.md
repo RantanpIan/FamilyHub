@@ -1,9 +1,9 @@
 # FamilyHub
 
-FamilyHub wird ein geschützter, gemeinsamer Ort für die Familienorganisation.
-Die Basis aus FH-CX-001/002 ist um Supabase Auth und private Benutzerprofile
-erweitert. Kalender, Aufgaben, Schule, Familienverwaltung und Benachrichtigungen
-sind weiterhin sichtbar als nicht verfügbar markiert.
+FamilyHub ist eine geschützte Familienorganisations-App. Die Foundation
+enthält Supabase Auth, private Benutzerprofile und grundlegende
+Familien-/Mitgliederverwaltung. Kalender, Aufgaben, Schule und
+Benachrichtigungen bleiben sichtbar als noch nicht verfügbar markiert.
 
 ## Voraussetzungen
 
@@ -40,6 +40,7 @@ npx playwright install chromium
 npm run test:e2e
 npm test
 npm run test:integration
+npm run build
 npm run build:client
 ```
 
@@ -48,6 +49,10 @@ Der Playwright-Smoke-Test startet Vite selbst. In CI wird Chromium mit
 alle vorhandenen Unit- und Browser-E2E-Tests aus. PostgreSQL-/RLS-Integrationstests
 werden separat gegen eine lokale, wegwerfbare Supabase-Instanz ausgeführt;
 Voraussetzungen stehen in [`tests/integration/README.md`](./tests/integration/README.md).
+Die Familien-E2E-Fälle benötigen lokale `SUPABASE_E2E_*`-Werte und
+`VITE_SUPABASE_*`; ohne diese Konfiguration werden sie explizit als blockiert
+übersprungen, nicht als bestanden gezählt. GitHub Actions richtet eine
+wegwerfbare Supabase-Instanz für RLS- und Browserprüfungen ein.
 `npm run build` führt Typecheck, Lint, Unit-Tests und Produktionsbuild zusammen
 aus. Die Anforderungszuordnung und nicht getesteten Fachfunktionen dokumentiert
 [`docs/testing/requirements-coverage.md`](./docs/testing/requirements-coverage.md).
@@ -68,9 +73,9 @@ packages/authorization      Beispiel-Policy für private Inhalte
 packages/calendar-domain   Kalender-Fachmodul (noch nicht verfügbar)
 packages/school-domain     Schul-Fachmodul (noch nicht verfügbar)
 packages/notifications-domain Benachrichtigungs-Fachmodul (noch nicht verfügbar)
-supabase/migrations         versionierte user_profiles-Migration mit RLS
+supabase/migrations         versionierte Profil- und Familienmigrationen mit RLS
 supabase/functions          vorbereitet; keine Produktivfunktionen
-tests                       Unit-, PostgreSQL/RLS-Integration und Playwright-Smoke-Tests
+tests                       Unit-, PostgreSQL/RLS-Integration und Playwright-E2E-Tests
 docs                        Architektur, Anforderungen und ADRs
 ```
 
@@ -109,7 +114,7 @@ bleiben bis zum Ablauf grundsätzlich gültig; kritische serverseitige Vorgänge
 müssen Identität, aktuellen Mitgliedschaftsstatus und Berechtigungen erneut
 prüfen. Profil- und App-RLS erzwingen aktuelle Datenzugriffe.
 
-Familienmitglieder ohne Login bleiben später vom Auth-User getrennte Datensätze.
+Familienmitglieder ohne Login werden als getrennte, verwaltete Profile geführt.
 Push-Empfänger werden später über Mitglieds-IDs adressiert, mit einer
 expliziten Option „Alle“.
 Diese Grenzen und die Modul-Abhängigkeitsrichtung sind in
@@ -119,17 +124,16 @@ Diese Grenzen und die Modul-Abhängigkeitsrichtung sind in
 dokumentiert.
 
 Tests verwenden ausschließlich synthetische Identitäten und UUIDs. `.env` wird
-ignoriert und `.env.example` enthält nur leere Platzhalter. Auth-/Profil-
-Integrationstests laufen gegen eine lokale, wegwerfbare Supabase-Instanz; für
-ein reales Projekt muss die Auth-Redirect-Allowlist zusätzlich konfiguriert
-werden. Es gibt keine Familien-, Rollen- oder Fachdatentabellen, Push-
-Zustellung oder Hosting-Konfiguration.
+ignoriert und `.env.example` enthält nur leere Platzhalter. Auth-/Profil- und
+Familien-RLS-Integrationstests laufen gegen eine lokale, wegwerfbare
+Supabase-Instanz; für ein reales Projekt muss die Auth-Redirect-Allowlist
+zusätzlich konfiguriert werden. Einladungen, Rollenwechsel und Fachressourcen,
+Push-Zustellung sowie Hosting-Konfiguration sind nicht implementiert.
 
-## Vorbereitung für FH-CX-004
+## Vorbereitung für FH-CX-005
 
 Bereit sind Workspace- und UI-Grundlagen, gemeinsame validierte Verträge,
-Supabase Auth, private Profile mit RLS, sichere Auth-Redirects,
-Auth-/Profil-Integrationstests und ein CI-Job für eine isolierte Supabase-Instanz.
-Der lokale RLS-Testlauf ist noch ausstehend, sofern Supabase CLI/Docker in der
-Entwicklungsumgebung nicht verfügbar sind. Familien, Rollen, Einladungen und
-Familienprofile bleiben Folgeaufträgen vorbehalten.
+Supabase Auth, private Profile mit RLS, sichere Auth-Redirects, atomare
+Familienanlage, familiengebundene Mitgliedschaften und verwaltete Profile mit
+RLS. Einladungen, Kontoverknüpfungen und Rollenwechsel bleiben Folgeaufträgen
+vorbehalten; Fachressourcen bleiben weiterhin nicht implementiert.
