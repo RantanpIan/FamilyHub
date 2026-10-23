@@ -1,9 +1,10 @@
 # Architekturüberblick
 
 FamilyHub ist ein Monorepo mit einer React-Webanwendung und fachlich getrennten
-TypeScript-Paketen. Supabase Auth, private Profile und grundlegende Familien-
-und Mitgliederverwaltung sind implementiert. Kalender-, Schul- und
-Benachrichtigungsdatenflüsse bleiben außerhalb dieses Auftrags.
+TypeScript-Paketen. Supabase Auth, private Profile, Familienverwaltung und ein
+generischer Ressourcen-/Freigabekern mit RLS sind implementiert.
+Kalender-, Schul- und Benachrichtigungsdatenflüsse bleiben außerhalb dieses
+Auftrags.
 
 ## Laufzeit und Abhängigkeitsrichtung
 
@@ -25,13 +26,25 @@ TypeScript prüft alle Paketquellen gemeinsam über die Root-Konfiguration.
 - Ein Familienmitglied braucht keinen eigenen Login. Login-Identitäten und
   Familienmitgliedsdatensätze sind getrennte Konzepte; dies gilt auch für
   bereits implementierte verwaltete Profile.
-- Private Inhalte gehören einem Nutzer und sind auch für Familienadministratoren
-  nicht automatisch lesbar. Die Foundation-Policy demonstriert diese Grenze;
-  sie ersetzt keine serverseitige RLS-Policy.
-- Die Beispiel-Policy verlangt zusätzlich die Zugehörigkeit des Nutzers zur
-  Familie des Inhalts, bevor Eigentümer- oder Familienfreigabe geprüft wird.
-- Die Familienverwaltung gewährt keine Sichtbarkeit privater Fachinhalte.
-  Explizite Ressourcenteilung bleibt eine spätere Fachfunktion.
+- Ressourcen gehören einem fachlichen Familienmitglied, nicht einer freien
+  Benutzer-ID. Ein Konto ist nur dann Eigentümer, wenn seine aktuelle aktive
+  Mitgliedschaft genau diesem Mitglied zugeordnet ist.
+- Private Ressourcen sind nur für den verknüpften Eigentümer lesbar und
+  veränderbar; Administratorrollen verleihen keinen Sonderzugriff.
+- Familienweite Ressourcen dürfen aktive Mitglieder derselben Familie lesen.
+  Explizite Grants gewähren ausschließlich Lesen. Beide Wege erfordern eine
+  aktuelle aktive Mitgliedschaft; fremde Familien-IDs und private Ressourcen
+  bleiben durch RLS unsichtbar.
+- Verwaltete Mitglieder ohne Login können Ziel eines Lese-Grants sein, erhalten
+  aber allein durch ihre Member-ID keine Authentifizierung oder Zugriffsrechte.
+  Ein Client kann für sie ohne eigene aktive Auth-Mitgliedschaft nicht als
+  Ressourceneigentümer handeln.
+- Das Ressourcenregister speichert nur Berechtigungsmetadaten, keine
+  Kalender-, Schul-, Import- oder Dokumentinhalte.
+- `private` ist ein vorläufiger sicherer Datenbank-Default, keine endgültige
+  Produktentscheidung über Standard-Sichtbarkeit. Die Rollenmatrix,
+  Delegation/Vertretung verwalteter Kinder und gemeinsam verantwortete private
+  Ressourcen bleiben offen.
 - Benachrichtigungsempfänger werden später über Mitglieds-IDs adressiert. Der
   gemeinsame Vertrag unterscheidet `all` explizit von `selected_members` mit
   eindeutigen IDs; Empfängerauflösung und Versand sind nicht implementiert.
@@ -91,7 +104,19 @@ Mitgliederansicht und dem atomaren Familien-Bootstrap; sie setzen einen festen
 `authenticated` ausführbar. Der ausgewählte Familienkontext in der UI ist
 kein Berechtigungsnachweis; jede Operation wird serverseitig erneut geprüft.
 
+Die Migration
+`supabase/migrations/20261023094000_create_resource_access_model.sql` ergänzt
+`resources` und `resource_grants`. Zusammengesetzte Fremdschlüssel sichern die
+Familienzugehörigkeit von Eigentümer und Grant-Empfänger. Separate RLS-Policies
+regeln SELECT, INSERT, UPDATE und DELETE. Direkte Client-Updates sowie
+Grant-Schreibzugriffe sind nicht freigegeben; Sichtbarkeitswechsel,
+Grant-Erteilung und Widerruf laufen über eng begrenzte `SECURITY DEFINER`-RPCs
+mit festem `search_path`, aktueller `auth.uid()`-Prüfung, Eigentümerprüfung und
+beschränkten EXECUTE-Rechten. Die Sichtbarkeitsänderung prüft zusätzlich eine
+Ressourcenversion.
+
 `.env.example` enthält nur leere Browser- und Testplatzhalter. Browsercode
 verwendet ausschließlich den öffentlichen Anon-/Publishable-Key; Service-Role-
-Keys bleiben auf lokale Testprozesse beschränkt. Es gibt keine Einladungs-,
-Kontoverknüpfungs- oder Fachressourcenprozesse.
+Keys bleiben auf lokale Testprozesse beschränkt. Einladungen,
+Kontoverknüpfungen, Rollenänderungen und fachliche Ressourcenoperationen sind
+nicht implementiert.

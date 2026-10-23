@@ -1,8 +1,8 @@
 # FamilyHub
 
 FamilyHub ist eine geschützte Familienorganisations-App. Die Foundation
-enthält Supabase Auth, private Benutzerprofile und grundlegende
-Familien-/Mitgliederverwaltung. Kalender, Aufgaben, Schule und
+enthält Supabase Auth, private Benutzerprofile, Familienverwaltung und einen
+gemeinsamen RLS-geschützten Berechtigungskern. Kalender, Aufgaben, Schule und
 Benachrichtigungen bleiben sichtbar als noch nicht verfügbar markiert.
 
 ## Voraussetzungen
@@ -69,11 +69,11 @@ lokale Supabase-Instanz.
 apps/client                 React-/Vite-Anwendung mit Supabase Auth
 packages/ui                 Designsystem und wiederverwendbare UI-Zustände
 packages/contracts          gemeinsame Zod-Schemas und TypeScript-Verträge
-packages/authorization      Beispiel-Policy für private Inhalte
+packages/authorization      typisierte fail-closed Beispiel-Policy
 packages/calendar-domain   Kalender-Fachmodul (noch nicht verfügbar)
 packages/school-domain     Schul-Fachmodul (noch nicht verfügbar)
 packages/notifications-domain Benachrichtigungs-Fachmodul (noch nicht verfügbar)
-supabase/migrations         versionierte Profil- und Familienmigrationen mit RLS
+supabase/migrations         versionierte Profil-, Familien- und Ressourcen-RLS-Migrationen
 supabase/functions          vorbereitet; keine Produktivfunktionen
 tests                       Unit-, PostgreSQL/RLS-Integration und Playwright-E2E-Tests
 docs                        Architektur, Anforderungen und ADRs
@@ -103,9 +103,9 @@ Das Profil wird nach bestätigter Anmeldung idempotent angelegt, nicht durch
 einen `auth.users`-Trigger. Fehlschläge blockieren damit nicht stillschweigend
 Registrierung/E-Mail-Bestätigung und werden in der UI sichtbar. Ein angemeldetes
 Konto ohne Familienzuordnung erhält einen definierten Leerzustand. Familien
-sind später voneinander zu isolieren; RLS und serverseitige Autorisierung bleiben
-für alle fachlichen Daten maßgeblich. Ein Familienadministrator erhält keine
-Sonderrechte auf private Inhalte.
+sind vollständig voneinander isoliert; RLS und serverseitige Autorisierung
+bleiben für alle fachlichen Daten maßgeblich. Ein Familienadministrator erhält
+keine Sonderrechte auf private Inhalte.
 
 E-Mail- und Recovery-Redirects verwenden ausschließlich feste Ziele auf dem
 aktuellen HTTPS-Origin (lokales HTTP ist nur auf Loopback zugelassen). Es gibt
@@ -115,6 +115,21 @@ müssen Identität, aktuellen Mitgliedschaftsstatus und Berechtigungen erneut
 prüfen. Profil- und App-RLS erzwingen aktuelle Datenzugriffe.
 
 Familienmitglieder ohne Login werden als getrennte, verwaltete Profile geführt.
+Die Migration
+`supabase/migrations/20261023094000_create_resource_access_model.sql`
+ergänzt ein Inhalts-freies Ressourcenregister und familiengebundene
+Lesefreigaben. Ressourcen gehören einem fachlichen Familienmitglied; ein
+Konto kann nur als Eigentümer handeln, wenn seine aktuelle aktive
+Mitgliedschaft genau diesem Profil zugeordnet ist. Neue Ressourcen sind
+technisch standardmäßig privat. Familienweite Lesbarkeit und explizite
+Lesefreigaben verleihen keine Schreibrechte; Freigaben können nur Eigentümer
+erteilen oder widerrufen. Sichtbarkeitsänderungen prüfen `expectedVersion`.
+Verwaltete Profile erhalten durch bekannte IDs keine Login-Rechte. Die
+vollständige Rollenmatrix, Eltern-/Kindervertretung und die Produktvorgabe für
+Standard-Sichtbarkeit bleiben offen. Der wiederverwendbare Client-Zugang zu
+diesem Modell liegt in `apps/client/src/access`; die Datenbank-RLS bleibt die
+maßgebliche Sicherheitsgrenze.
+
 Push-Empfänger werden später über Mitglieds-IDs adressiert, mit einer
 expliziten Option „Alle“.
 Diese Grenzen und die Modul-Abhängigkeitsrichtung sind in
@@ -124,16 +139,17 @@ Diese Grenzen und die Modul-Abhängigkeitsrichtung sind in
 dokumentiert.
 
 Tests verwenden ausschließlich synthetische Identitäten und UUIDs. `.env` wird
-ignoriert und `.env.example` enthält nur leere Platzhalter. Auth-/Profil- und
-Familien-RLS-Integrationstests laufen gegen eine lokale, wegwerfbare
+ignoriert und `.env.example` enthält nur leere Platzhalter. Auth-/Profil-,
+Familien- und Ressourcen-RLS-Integrationstests laufen gegen eine lokale, wegwerfbare
 Supabase-Instanz; für ein reales Projekt muss die Auth-Redirect-Allowlist
 zusätzlich konfiguriert werden. Einladungen, Rollenwechsel und Fachressourcen,
 Push-Zustellung sowie Hosting-Konfiguration sind nicht implementiert.
 
-## Vorbereitung für FH-CX-005
+## Vorbereitung für FH-CX-006
 
 Bereit sind Workspace- und UI-Grundlagen, gemeinsame validierte Verträge,
 Supabase Auth, private Profile mit RLS, sichere Auth-Redirects, atomare
-Familienanlage, familiengebundene Mitgliedschaften und verwaltete Profile mit
-RLS. Einladungen, Kontoverknüpfungen und Rollenwechsel bleiben Folgeaufträgen
-vorbehalten; Fachressourcen bleiben weiterhin nicht implementiert.
+Familienanlage, familiengebundene Mitgliedschaften, verwaltete Profile sowie
+der generische Ressourcen-/Freigabekern. Einladungen, Kontoverknüpfungen,
+Rollenwechsel, fachliche Inhalte und eine Freigabe-Oberfläche bleiben
+Folgeaufträgen vorbehalten.

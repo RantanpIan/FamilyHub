@@ -1,10 +1,17 @@
 import {
   FamilyIdSchema,
   FamilyMemberIdSchema,
+  ResourceIdSchema,
   UserIdSchema,
 } from "@familyhub/contracts";
-import type { FamilyId, FamilyMemberId, UserId } from "@familyhub/contracts";
-import type { ResourceAccessRequest } from "@familyhub/authorization";
+import type {
+  FamilyId,
+  FamilyMemberId,
+  ResourceAccessMembership,
+  ResourceAccessRequest,
+  ResourceId,
+  UserId,
+} from "@familyhub/contracts";
 
 const ids = {
   familyA: FamilyIdSchema.parse("d1169748-1b21-4b9f-a35a-ec07a7d58b0e"),
@@ -17,6 +24,7 @@ const ids = {
   adultB: FamilyMemberIdSchema.parse("00000000-0000-4000-8000-000000000006"),
   pendingMember: FamilyMemberIdSchema.parse("00000000-0000-4000-8000-000000000007"),
   revokedMember: FamilyMemberIdSchema.parse("00000000-0000-4000-8000-000000000008"),
+  linkedAdminA: FamilyMemberIdSchema.parse("00000000-0000-4000-8000-000000000009"),
   userAdminA: UserIdSchema.parse("10000000-0000-4000-8000-000000000001"),
   userAdultA: UserIdSchema.parse("10000000-0000-4000-8000-000000000002"),
   userChildA: UserIdSchema.parse("10000000-0000-4000-8000-000000000003"),
@@ -24,12 +32,12 @@ const ids = {
   userAdultB: UserIdSchema.parse("10000000-0000-4000-8000-000000000006"),
   userPending: UserIdSchema.parse("10000000-0000-4000-8000-000000000007"),
   userRevoked: UserIdSchema.parse("10000000-0000-4000-8000-000000000008"),
-  privateResourceA: "20000000-0000-4000-8000-000000000001",
-  sharedResourceA: "20000000-0000-4000-8000-000000000002",
-  grantedResourceA: "20000000-0000-4000-8000-000000000003",
-  revokedResourceA: "20000000-0000-4000-8000-000000000004",
-  privateResourceB: "20000000-0000-4000-8000-000000000005",
-  adminPrivateResourceA: "20000000-0000-4000-8000-000000000006",
+  privateResourceA: ResourceIdSchema.parse("20000000-0000-4000-8000-000000000001"),
+  sharedResourceA: ResourceIdSchema.parse("20000000-0000-4000-8000-000000000002"),
+  grantedResourceA: ResourceIdSchema.parse("20000000-0000-4000-8000-000000000003"),
+  revokedResourceA: ResourceIdSchema.parse("20000000-0000-4000-8000-000000000004"),
+  privateResourceB: ResourceIdSchema.parse("20000000-0000-4000-8000-000000000005"),
+  adminPrivateResourceA: ResourceIdSchema.parse("20000000-0000-4000-8000-000000000006"),
 } as const;
 
 export type SyntheticMember = {
@@ -40,12 +48,14 @@ export type SyntheticMember = {
 };
 
 export type SyntheticResource = {
-  id: string;
+  id: ResourceId;
   familyId: FamilyId;
-  ownerUserId: UserId;
+  ownerMemberId: FamilyMemberId;
   visibility: "private" | "family";
   grants: ResourceAccessRequest["grants"];
 };
+
+type SyntheticMembershipInput = Omit<ResourceAccessMembership, "familyId">;
 
 export const familyA = {
   id: ids.familyA,
@@ -76,13 +86,37 @@ export const familyA = {
     },
   } satisfies Record<string, SyntheticMember>,
   memberships: [
-    { memberId: ids.adminA, status: "active" },
-    { memberId: ids.adultA, status: "active" },
-    { memberId: ids.childLoginA, status: "active" },
-    { memberId: ids.childManagedA, status: "active" },
-    { memberId: ids.pendingMember, status: "pending" },
-    { memberId: ids.revokedMember, status: "revoked" },
-  ] as const,
+    {
+      memberId: ids.adminA,
+      userId: ids.userAdminA,
+      status: "active",
+      memberStatus: "active",
+    },
+    {
+      memberId: ids.adultA,
+      userId: ids.userAdultA,
+      status: "active",
+      memberStatus: "active",
+    },
+    {
+      memberId: ids.childLoginA,
+      userId: ids.userChildA,
+      status: "active",
+      memberStatus: "active",
+    },
+    {
+      memberId: ids.pendingMember,
+      userId: ids.userPending,
+      status: "pending",
+      memberStatus: "active",
+    },
+    {
+      memberId: ids.revokedMember,
+      userId: ids.userRevoked,
+      status: "revoked",
+      memberStatus: "active",
+    },
+  ] as const satisfies readonly SyntheticMembershipInput[],
   membershipActors: [
     { id: ids.pendingMember, userId: ids.userPending },
     { id: ids.revokedMember, userId: ids.userRevoked },
@@ -91,33 +125,34 @@ export const familyA = {
     ownerPrivate: {
       id: ids.privateResourceA,
       familyId: ids.familyA,
-      ownerUserId: ids.userAdultA,
+      ownerMemberId: ids.adultA,
       visibility: "private",
       grants: [],
     },
     administratorPrivate: {
       id: ids.adminPrivateResourceA,
       familyId: ids.familyA,
-      ownerUserId: ids.userAdminA,
+      ownerMemberId: ids.adminA,
       visibility: "private",
       grants: [],
     },
     shared: {
       id: ids.sharedResourceA,
       familyId: ids.familyA,
-      ownerUserId: ids.userAdultA,
+      ownerMemberId: ids.adultA,
       visibility: "family",
       grants: [],
     },
     explicitlyGranted: {
       id: ids.grantedResourceA,
       familyId: ids.familyA,
-      ownerUserId: ids.userAdultA,
+      ownerMemberId: ids.adultA,
       visibility: "private",
       grants: [
         {
           resourceId: ids.grantedResourceA,
-          userId: ids.userChildA,
+          familyId: ids.familyA,
+          granteeMemberId: ids.childLoginA,
           permission: "read",
           status: "active",
         },
@@ -126,12 +161,13 @@ export const familyA = {
     revokedGrant: {
       id: ids.revokedResourceA,
       familyId: ids.familyA,
-      ownerUserId: ids.userAdultA,
+      ownerMemberId: ids.adultA,
       visibility: "private",
       grants: [
         {
           resourceId: ids.revokedResourceA,
-          userId: ids.userChildA,
+          familyId: ids.familyA,
+          granteeMemberId: ids.childLoginA,
           permission: "read",
           status: "revoked",
         },
@@ -155,23 +191,45 @@ export const familyB = {
       role: "adult",
       userId: ids.userAdultB,
     },
+    linkedFamilyAAdministrator: {
+      id: ids.linkedAdminA,
+      label: "Synthetic A administrator linked in B",
+      role: "adult",
+      userId: ids.userAdminA,
+    },
   } satisfies Record<string, SyntheticMember>,
   memberships: [
-    { memberId: ids.adminB, status: "active" },
-    { memberId: ids.adultB, status: "active" },
-  ] as const,
+    {
+      memberId: ids.adminB,
+      userId: ids.userAdminB,
+      status: "active",
+      memberStatus: "active",
+    },
+    {
+      memberId: ids.adultB,
+      userId: ids.userAdultB,
+      status: "active",
+      memberStatus: "active",
+    },
+    {
+      memberId: ids.linkedAdminA,
+      userId: ids.userAdminA,
+      status: "active",
+      memberStatus: "active",
+    },
+  ] as const satisfies readonly SyntheticMembershipInput[],
   resources: {
     private: {
       id: ids.privateResourceB,
       familyId: ids.familyB,
-      ownerUserId: ids.userAdultB,
+      ownerMemberId: ids.adultB,
       visibility: "private",
       grants: [],
     },
   } satisfies Record<string, SyntheticResource>,
 };
 
-export const allSyntheticMemberships = [
+export const allSyntheticMemberships: ResourceAccessMembership[] = [
   ...familyA.memberships.map((membership) => ({
     ...membership,
     familyId: familyA.id,
@@ -180,26 +238,23 @@ export const allSyntheticMemberships = [
     ...membership,
     familyId: familyB.id,
   })),
-] as const;
+];
 
 export function makeAccessRequest(
   actor: { id: SyntheticMember["id"]; userId: SyntheticMember["userId"] },
   resource: SyntheticResource,
   action: ResourceAccessRequest["action"] = "read",
 ): ResourceAccessRequest {
-  const actorFamilyIds = allSyntheticMemberships
-    .filter(
-      (membership) =>
-        membership.memberId === actor.id && membership.status === "active",
-    )
-    .map((membership) => membership.familyId);
-
   return {
     actorUserId: actor.userId,
-    actorFamilyIds,
+    actorMemberships: actor.userId
+      ? allSyntheticMemberships.filter(
+          (membership) => membership.userId === actor.userId,
+        )
+      : [],
     resourceId: resource.id,
     resourceFamilyId: resource.familyId,
-    ownerUserId: resource.ownerUserId,
+    ownerMemberId: resource.ownerMemberId,
     visibility: resource.visibility,
     action,
     grants: resource.grants,

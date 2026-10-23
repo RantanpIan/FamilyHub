@@ -64,7 +64,7 @@ jobs:
         run: supabase stop
 
   auth-rls:
-    name: Supabase Auth, profile and family RLS tests
+    name: Supabase Auth, family and resource ACL RLS tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -78,6 +78,8 @@ jobs:
         with:
           version: latest
       - run: supabase start
+      - name: Reset disposable database and apply all migrations
+        run: supabase db reset --local
       - name: Configure ephemeral local Supabase test credentials
         shell: bash
         run: |
@@ -87,6 +89,12 @@ jobs:
             echo "SUPABASE_TEST_ANON_KEY=$ANON_KEY"
             echo "SUPABASE_TEST_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
           } >> "$GITHUB_ENV"
+      - name: Run all resource ACL RLS cases (require 16/16)
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:integration -- tests/integration/resource-access.rls.test.ts --reporter=default | tee acl-rls.log
+          grep -Fq "Tests 16 passed (16)" acl-rls.log
       - run: npm run test:integration
       - name: Stop local Supabase
         if: always()

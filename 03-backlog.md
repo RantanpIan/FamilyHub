@@ -1,7 +1,7 @@
 # FamilyHub – Backlog und Umsetzungssteuerung
 
 > **Stand:** 22.10.2026, Dokumentationsexport.  
-> **Wichtig:** FH-CX-001 bis FH-CX-003 sind abgeschlossen. `FH-CX-004` ist aktuell in Umsetzung; der lokale RLS-/E2E-Lauf benötigt eine verfügbare Supabase-Instanz. Andere Auftragsstände sind nicht verifiziert.
+> **Wichtig:** FH-CX-001 bis FH-CX-004 sind abgeschlossen; FH-CX-004 wurde mit Commit `8277346` einschließlich erfolgreichem CI-Fix bestätigt. `FH-CX-005` ist in Umsetzung. Andere Auftragsstände sind nicht verifiziert.
 > **Quellenlage:** Die frühere Planung umfasste **34 Codex-Aufträge (FH-CX-001 bis FH-CX-034)**. Die Phasenblöcke und einige Abhängigkeiten sind überliefert; **Originaltitel und exakte Akzeptanzkriterien aller einzelnen Aufträge sind nicht vollständig verfügbar**. Dieses Dokument erzeugt ausdrücklich **keine** Ersatzaufträge und erklärt keinen Auftrag für abgeschlossen.
 
 ## 1. Arbeitsmodell
@@ -28,7 +28,7 @@ Keine Story allein aufgrund eines grünen Builds auf „getestet“ setzen. Kein
 
 | Bereich (Epic-Gruppe) | Codex-Aufträge | Inhalt | Gesamtstatus |
 | --- | --- | --- | --- |
-| Foundation | `FH-CX-001`–`007` | Repository, Basistechnik, Identitäten, Zugriffe und Grundlagen | `001`–`003` abgeschlossen; `004` in Umsetzung; übrige nicht verifiziert |
+| Foundation | `FH-CX-001`–`007` | Repository, Basistechnik, Identitäten, Zugriffe und Grundlagen | `001`–`004` abgeschlossen; `005` in Umsetzung; übrige nicht verifiziert |
 | Kalender | `FH-CX-008`–`016` | Kalenderdomäne, Serien/Ausnahmen und nutzbare Terminabläufe | Nicht verifiziert |
 | Push | `FH-CX-017`–`021` | Erinnerungen, Empfänger, Zustellung und Sicherheitsmechanismen | Nicht verifiziert |
 | Schule | `FH-CX-022`–`026` | Schulprofil, Stundenplan, Gültigkeit und Kalenderprojektionen | Nicht verifiziert |
@@ -46,8 +46,8 @@ Die Sammelbezeichnungen der Gruppen sind **keine** rekonstruierten Originaltitel
 | FH-CX-001 | Foundation | **Monorepo, Projektstruktur, React/Vite, TypeScript, Supabase-Konfiguration** | **Abgeschlossen** |
 | FH-CX-002 | Foundation | **Testfundament und synthetische Testdaten** | **Abgeschlossen** |
 | FH-CX-003 | Benutzer und Familien | **Supabase Auth und Benutzerprofile** | **Abgeschlossen** |
-| FH-CX-004 | Familienverwaltung | **Familienverwaltung und Familienmitglieder** | **In Umsetzung** |
-| FH-CX-005 | Foundation | Originalauftrag ergänzen | Nicht verifiziert |
+| FH-CX-004 | Familienverwaltung | **Familienverwaltung und Familienmitglieder** | **Abgeschlossen** |
+| FH-CX-005 | Identity / Family / Access | **Ressourcenberechtigungen, Eigentümerschaft und private Inhalte** | **In Umsetzung** |
 | FH-CX-006 | Foundation | Originalauftrag ergänzen | Nicht verifiziert |
 | FH-CX-007 | Foundation | Originalauftrag ergänzen | Nicht verifiziert |
 | FH-CX-008 | Kalender | Originalauftrag ergänzen | Nicht verifiziert |

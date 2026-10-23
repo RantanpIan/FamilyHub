@@ -98,6 +98,104 @@ export type UpdateManagedMemberInput = z.infer<typeof UpdateManagedMemberInputSc
 export type FamilySummary = z.infer<typeof FamilySummarySchema>;
 export type FamilyMember = z.infer<typeof FamilyMemberSchema>;
 
+export const ResourceIdSchema = z.uuid().brand<"ResourceId">();
+export const ResourceGrantIdSchema = z.uuid().brand<"ResourceGrantId">();
+export type ResourceId = z.infer<typeof ResourceIdSchema>;
+export type ResourceGrantId = z.infer<typeof ResourceGrantIdSchema>;
+
+export const ResourceTypeSchema = z.enum([
+  "calendar_event",
+  "school_item",
+  "import_artifact",
+  "task",
+  "document",
+]);
+export const ResourceVisibilitySchema = z.enum(["private", "family"]);
+export const ResourceGrantStatusSchema = z.enum(["active", "revoked"]);
+
+export const ResourceSchema = z.object({
+  id: ResourceIdSchema,
+  family_id: FamilyIdSchema,
+  owner_member_id: FamilyMemberIdSchema,
+  resource_type: ResourceTypeSchema,
+  visibility: ResourceVisibilitySchema,
+  version: z.number().int().positive(),
+  created_at: z.iso.datetime({ offset: true }),
+  updated_at: z.iso.datetime({ offset: true }),
+}).strict();
+
+export const CreateResourceInputSchema = z.object({
+  familyId: FamilyIdSchema,
+  ownerMemberId: FamilyMemberIdSchema,
+  resourceType: ResourceTypeSchema,
+  visibility: ResourceVisibilitySchema.default("private"),
+}).strict();
+
+export const SetResourceVisibilityInputSchema = z.object({
+  resourceId: ResourceIdSchema,
+  visibility: ResourceVisibilitySchema,
+  expectedVersion: z.number().int().positive(),
+}).strict();
+
+export const ResourceGrantSchema = z.object({
+  id: ResourceGrantIdSchema,
+  resource_id: ResourceIdSchema,
+  family_id: FamilyIdSchema,
+  grantee_member_id: FamilyMemberIdSchema,
+  permission: z.literal("read"),
+  status: ResourceGrantStatusSchema,
+  created_at: z.iso.datetime({ offset: true }),
+  updated_at: z.iso.datetime({ offset: true }),
+  revoked_at: z.iso.datetime({ offset: true }).nullable(),
+}).strict();
+
+export const GrantResourceReadInputSchema = z.object({
+  resourceId: ResourceIdSchema,
+  granteeMemberId: FamilyMemberIdSchema,
+}).strict();
+
+export type ResourceType = z.infer<typeof ResourceTypeSchema>;
+export type ResourceVisibility = z.infer<typeof ResourceVisibilitySchema>;
+export type ResourceGrantStatus = z.infer<typeof ResourceGrantStatusSchema>;
+export type Resource = z.infer<typeof ResourceSchema>;
+export type CreateResourceInput = z.infer<typeof CreateResourceInputSchema>;
+export type SetResourceVisibilityInput = z.infer<typeof SetResourceVisibilityInputSchema>;
+export type ResourceGrant = z.infer<typeof ResourceGrantSchema>;
+export type GrantResourceReadInput = z.infer<typeof GrantResourceReadInputSchema>;
+
+export const ResourceAccessActionSchema = z.enum(["read", "update", "delete"]);
+export const ResourceAccessMembershipSchema = z.object({
+  userId: UserIdSchema,
+  familyId: FamilyIdSchema,
+  memberId: FamilyMemberIdSchema,
+  status: z.enum(["active", "pending", "revoked"]),
+  memberStatus: FamilyMemberStatusSchema,
+}).strict();
+
+export const ResourceAccessGrantSchema = z.object({
+  resourceId: ResourceIdSchema,
+  familyId: FamilyIdSchema,
+  granteeMemberId: FamilyMemberIdSchema,
+  permission: z.literal("read"),
+  status: ResourceGrantStatusSchema,
+}).strict();
+
+export const ResourceAccessRequestSchema = z.object({
+  actorUserId: UserIdSchema.nullable(),
+  actorMemberships: z.array(ResourceAccessMembershipSchema),
+  resourceId: ResourceIdSchema,
+  resourceFamilyId: FamilyIdSchema,
+  ownerMemberId: FamilyMemberIdSchema,
+  visibility: ResourceVisibilitySchema,
+  action: ResourceAccessActionSchema,
+  grants: z.array(ResourceAccessGrantSchema),
+}).strict();
+
+export type ResourceAccessAction = z.infer<typeof ResourceAccessActionSchema>;
+export type ResourceAccessMembership = z.infer<typeof ResourceAccessMembershipSchema>;
+export type ResourceAccessGrant = z.infer<typeof ResourceAccessGrantSchema>;
+export type ResourceAccessRequest = z.infer<typeof ResourceAccessRequestSchema>;
+
 export const NotificationRecipientSelectionSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("all") }).strict(),
   z.object({
@@ -112,13 +210,3 @@ export const NotificationRecipientSelectionSchema = z.discriminatedUnion("kind",
 export type NotificationRecipientSelection = z.infer<
   typeof NotificationRecipientSelectionSchema
 >;
-
-export const PrivateContentAccessSchema = z.object({
-  actorUserId: UserIdSchema,
-  ownerUserId: UserIdSchema,
-  familyId: FamilyIdSchema,
-  actorFamilyIds: z.array(FamilyIdSchema),
-  visibility: z.enum(["private", "family"]),
-});
-
-export type PrivateContentAccess = z.infer<typeof PrivateContentAccessSchema>;

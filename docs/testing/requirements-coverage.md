@@ -5,7 +5,7 @@
 | Ebene | Ort/Konfiguration | Befehl | Stand |
 | --- | --- | --- | --- |
 | Unit | `tests/unit`, `vitest.config.ts` | `npm run test:unit` | Implementiert; reine Verträge, Beispiel-Policy und UI-Zustände |
-| Integration / PostgreSQL-RLS | `tests/integration`, `vitest.integration.config.ts` | `npm run test:integration` | FH-CX-003 Auth-/Profil- und FH-CX-004 Familien-RLS-Tests; echte lokale Supabase-Instanz und synthetische Test-Keys erforderlich |
+| Integration / PostgreSQL-RLS | `tests/integration`, `vitest.integration.config.ts` | `npm run test:integration` | FH-CX-003 Auth-/Profil-, FH-CX-004 Familien- und FH-CX-005 Ressourcen-RLS-Tests; echte lokale Supabase-Instanz und synthetische Test-Keys erforderlich |
 | Browser-E2E | `tests/e2e`, `playwright.config.ts` | `npm run test:e2e` | Chromium-Smoke-Test sowie authentifizierte Familien-Onboarding- und Mitgliederflüsse; Familienfälle benötigen lokale Supabase-Werte |
 | Gesamter vorhandener Testlauf | Root-Skripte | `npm test` | Unit-Tests plus Browser-E2E; enthält keine Integrationstests |
 
@@ -39,9 +39,9 @@ kein Beleg für Datenbank-, API-, Storage- oder RLS-Durchsetzung.
 
 | Anforderungs-ID | Abdeckung | Testnachweis / Grenze |
 | --- | --- | --- |
-| AC-FAM-01 | Teilweise geprüft | `tests/unit/authorization.test.ts`: Eigentümer, explizite Lesefreigabe, Widerruf, private Inhalte, aktive/nicht aktive Mitgliedschaft, verwaltetes Profil und Schreibverweigerung. Reine Beispiel-Policy; keine Rollenmatrix oder serverseitige Durchsetzung. |
-| AC-FAM-02 | Teilweise geprüft | `tests/unit/authorization.test.ts`: Familie-A-Mitglied gegen Familie-B-Ressource und ungültige Ressourcen-/Familien-IDs. Kein direkter DB-/API-Aufruf, keine Metadaten- oder Existenzseitenkanäle. |
-| AC-FAM-03 | Teilweise geprüft | `tests/unit/authorization.test.ts`: private Ressource ist nicht für Administrator oder unberechtigte Familienmitglieder lesbar. Listen, Suche, Push, Export, Projektionen und Aggregationen sind nicht implementiert/getestet. |
+| AC-FAM-01 | Teilweise geprüft | `tests/unit/authorization.test.ts` und `tests/integration/resource-access.rls.test.ts`: Eigentümer, explizite Lesefreigabe, Widerruf, private Inhalte, aktive/nicht aktive Mitgliedschaft und Schreibverweigerung. Integrationstest ist implementiert, lokal mangels Supabase-Toolchain blockiert; keine vollständige Rollenmatrix. |
+| AC-FAM-02 | Teilweise geprüft | Ressourcen-RLS-Test prüft bekannte IDs aus fremder Familie; Listen, Suche, Push, Export, Projektionen und Aggregationen sind nicht implementiert/getestet. |
+| AC-FAM-03 | Teilweise geprüft | Unit- und RLS-Tests für private Ressourcen, Administrator ohne Sonderzugriff und Wechsel zu `private`; indirekte Fachansichten sind nicht implementiert/getestet. |
 | AC-FAM-04 | Nicht geprüft | Rollen-/Mitgliedschaftswechsel und veraltete Clientdaten erfordern spätere serverseitige Integrationstests. |
 | AC-PUSH-01 | Nicht geprüft | Empfängervertrag wird validiert; es gibt keine Empfänger-UI. |
 | AC-PUSH-02 | Nicht geprüft | Der Vertrag stellt Varianten `all` und `selected_members` bereit, aber familienbezogene Empfängerauflösung oder Versand sind nicht implementiert. |
@@ -162,5 +162,42 @@ wegen fehlender Supabase-Werte übersprungen. Diese übersprungenen Fälle gelte
 nicht als bestanden.
 
 Kalender-, Aufgaben-, Einladungs-, Rollenwechsel-, Stundenplan- und
-Push-Funktionen sowie produktive fachliche RLS-Policies sind nicht Teil von
-FH-CX-004 und bleiben ausdrücklich ungetestet.
+Push-Funktionen sowie fachliche Ressourceninhalte sind nicht Teil von FH-CX-004
+und bleiben ausdrücklich ungetestet.
+
+## FH-CX-005 – Ressourcenberechtigungen und private Inhalte
+
+`tests/integration/resource-access.rls.test.ts` enthält PostgreSQL-/PostgREST-
+Grenztests mit echten synthetischen Auth-Identitäten. Service Role wird nur
+für Testnutzer-/Profildaten, synthetische Mitgliedschaften und unabhängige
+Integritätsprüfungen verwendet. Ressourcenoperationen und
+Berechtigungsassertions laufen über normale Benutzerclients. Die Tests sind
+implementiert, aber in der aktuellen Umgebung nicht ausgeführt: Docker-Daemon
+ist nicht erreichbar, Supabase CLI fehlt und keine lokale Supabase-Instanz ist
+verfügbar. Die neue Migration wurde nicht im Cloud-Projekt ausgeführt.
+
+| Test-ID | Abdeckung | Testnachweis / Grenze |
+| --- | --- | --- |
+| ACL-T01 | Implementiert; RLS lokal blockiert | Verknüpfter Eigentümer liest sein privates Registerobjekt; `owns`, `can_update` und `can_delete` sind für ihn wahr. |
+| ACL-T02 | Implementiert; RLS lokal blockiert | Anderes aktives Mitglied derselben Familie kann private Ressource nicht lesen. |
+| ACL-T03 | Implementiert; RLS lokal blockiert | Familienadministrator erhält keinen Sonderzugriff auf private Ressource eines anderen Eigentümers. |
+| ACL-T04 | Implementiert; RLS lokal blockiert | Aktives Mitglied kann familienweit sichtbare Ressource lesen. |
+| ACL-T05 | Implementiert; RLS lokal blockiert | Konto ohne Zugehörigkeit zur Ressourcenfamilie erhält für bekannte ID keine Zeile und `can_read=false`. |
+| ACL-T06 | Implementiert; RLS lokal blockiert | Eigentümer erteilt einer aktiven Person derselben Familie ein explizites Leserecht; Empfänger sieht keine Grant-Metadaten. |
+| ACL-T07 | Implementiert; RLS lokal blockiert | Nach Widerruf ist der nächste Ressourcenabruf des Empfängers leer. |
+| ACL-T08 | Implementiert; RLS lokal blockiert | Grant an Familienmitglied einer anderen Familie wird abgewiesen. |
+| ACL-T09 | Implementiert; RLS lokal blockiert | Nicht-Eigentümer kann nicht ändern/löschen; privilegierte Verifikation bestätigt unveränderte Inhalte. |
+| ACL-T10 | Implementiert; RLS lokal blockiert | Client kann Familie/Eigentümer/Grant-Empfänger nicht manipulieren; service-role Fixture-Checks prüfen zusammengesetzte FK-Grenzen. |
+| ACL-T11 | Implementiert; RLS lokal blockiert | Widerrufene Kontomitgliedschaft und inaktives Mitglied entziehen den nächsten Zugriff. |
+| ACL-T12 | Implementiert; RLS lokal blockiert | Anonyme Anfragen erhalten weder Ressourcenzeilen noch Funktionszugriff. |
+| ACL-T13 | Implementiert; RLS lokal blockiert | Mehrfamilienkonto kann familienweite Ressource seiner zweiten Familie sehen, nicht aber private Ressourcen fremder Eigentümer. |
+| ACL-T14 | Implementiert; RLS lokal blockiert | Eigentümer setzt gemeinsame Ressource mit erwarteter Version privat; andere verlieren Zugriff, stale version wird abgewiesen. |
+| ACL-T15 | Implementiert; RLS lokal blockiert | Grant auf verwaltete Member-ID gewährt ohne Auth-Verknüpfung keinen Zugriff; solches Profil kann nicht Ressourceneigentümer handeln. |
+| ACL-T16 | Implementiert; RLS lokal blockiert | Gleichzeitige Grant-Aufrufe bleiben eindeutig; Widerruf/Regrant reaktiviert denselben Grant-Datensatz. |
+
+Die Integrationstests belegen erst nach tatsächlicher Ausführung die
+PostgreSQL-RLS-Grenze. Unit-Tests für `packages/authorization` prüfen nur die
+reine Beispiel-Policy und ersetzen den RLS-Nachweis nicht. Der technische
+Default `private` ist vorsorglich und ausdrücklich keine abschließende
+Produktentscheidung. Die vollständige Rollenmatrix, Vertretungsrechte für
+verwaltete Kinder und gemeinsam verantwortete Inhalte bleiben offen.

@@ -1,65 +1,86 @@
-import type { PrivateContentAccess } from "@familyhub/contracts";
 import {
-  FamilyIdSchema,
-  UserIdSchema,
+  ResourceAccessRequestSchema,
+  type ResourceAccessRequest,
 } from "@familyhub/contracts";
-import { z } from "zod";
 
-export function canReadPersonalContent(input: PrivateContentAccess): boolean {
-  if (!input.actorFamilyIds.includes(input.familyId)) {
-    return false;
-  }
-
-  return input.actorUserId === input.ownerUserId || input.visibility === "family";
+function parseRequest(input: unknown): ResourceAccessRequest | null {
+  const result = ResourceAccessRequestSchema.safeParse(input);
+  return result.success ? result.data : null;
 }
 
-const ResourceAccessRequestSchema = z.object({
-  actorUserId: UserIdSchema.nullable(),
-  actorFamilyIds: z.array(FamilyIdSchema),
-  resourceId: z.uuid(),
-  resourceFamilyId: FamilyIdSchema,
-  ownerUserId: UserIdSchema,
-  visibility: z.enum(["private", "family"]),
-  action: z.enum(["read", "write"]),
-  grants: z.array(
-    z.object({
-      resourceId: z.uuid(),
-      userId: UserIdSchema,
-      permission: z.literal("read"),
-      status: z.enum(["active", "revoked"]),
-    }),
-  ),
-});
+function activeActorMembers(request: ResourceAccessRequest) {
+  if (!request.actorUserId) {
+    return [];
+  }
 
-export type ResourceAccessRequest = z.infer<typeof ResourceAccessRequestSchema>;
+  return request.actorMemberships.filter(
+    (membership) =>
+      membership.userId === request.actorUserId &&
+      membership.familyId === request.resourceFamilyId &&
+      membership.status === "active" &&
+      membership.memberStatus === "active",
+  );
+}
 
-export function canAccessResource(input: unknown): boolean {
-  const parsed = ResourceAccessRequestSchema.safeParse(input);
-  if (!parsed.success) {
+function ownsResource(request: ResourceAccessRequest): boolean {
+  return activeActorMembers(request).some(
+    (membership) => membership.memberId === request.ownerMemberId,
+  );
+}
+
+export function isResourceOwner(input: unknown): boolean {
+  const request = parseRequest(input);
+  return request ? ownsResource(request) : false;
+}
+
+export function canReadResource(input: unknown): boolean {
+  const request = parseRequest(input);
+  if (!request || !request.actorUserId) {
     return false;
   }
 
-  const request = parsed.data;
-  const { actorUserId, resourceFamilyId, resourceId, action } = request;
-
-  if (!actorUserId || !request.actorFamilyIds.includes(resourceFamilyId)) {
+  const memberships = activeActorMembers(request);
+  if (memberships.length === 0) {
     return false;
   }
-
-  if (request.ownerUserId === actorUserId) {
+  if (memberships.some((membership) => membership.memberId === request.ownerMemberId)) {
+    return true;
+  }
+  if (request.visibility === "family") {
     return true;
   }
 
-  if (action === "write") {
+  return request.grants.some(
+    (grant) =>
+      grant.resourceId === request.resourceId &&
+      grant.familyId === request.resourceFamilyId &&
+      grant.permission === "read" &&
+      grant.status === "active" &&
+      memberships.some((membership) => membership.memberId === grant.granteeMemberId),
+  );
+}
+
+export function canUpdateResource(input: unknown): boolean {
+  const request = parseRequest(input);
+  return request ? ownsResource(request) : false;
+}
+
+export function canDeleteResource(input: unknown): boolean {
+  const request = parseRequest(input);
+  return request ? ownsResource(request) : false;
+}
+
+export function canAccessResource(input: unknown): boolean {
+  const request = parseRequest(input);
+  if (!request) {
     return false;
   }
 
-  const hasActiveGrant = request.grants.some(
-    (grant) =>
-      grant.resourceId === resourceId &&
-      grant.userId === actorUserId &&
-      grant.status === "active",
-  );
-
-  return hasActiveGrant || request.visibility === "family";
+  if (request.action === "read") {
+    return canReadResource(request);
+  }
+  if (request.action === "update") {
+    return canUpdateResource(request);
+  }
+  return canDeleteResource(request);
 }

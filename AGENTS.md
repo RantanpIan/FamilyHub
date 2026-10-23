@@ -17,7 +17,8 @@ Prioritäten: einfache und kindgerechte Bedienung, Sicherheit und Datenschutz, Z
 - **FH-CX-001 wurde im vorherigen Auftrag abgeschlossen.** Bestehende Implementierung bewahren und nicht ohne Anlass neu aufsetzen.
 - **FH-CX-002 wurde abgeschlossen.** Die Auth-/RLS-Test-Fixtures und bestehende Unit-/E2E-Konfiguration als Grundlage für Folgeaufträge erhalten.
 - **FH-CX-003 ist abgeschlossen.** Supabase Auth, Benutzerprofile und deren RLS-/CI-Nachweise sind Grundlage für Folgeaufträge.
-- **FH-CX-004 ist der aktuelle Auftrag.** Familien- und Mitgliederverwaltung mit tenant-sicherer RLS umsetzen; Einladungen, Rollenwechsel und Fachressourcen bleiben ausgeschlossen.
+- **FH-CX-004 ist abgeschlossen.** Familien- und Mitgliederverwaltung sowie deren RLS-/E2E-Fix sind Grundlage für Folgeaufträge.
+- **FH-CX-005 ist der aktuelle Auftrag.** Das gemeinsame Ressourcen-/Freigaberegister mit fail-closed PostgreSQL-RLS umsetzen; Fachinhalte und die offene Rollen-/Kindervertretungsmatrix bleiben ausgeschlossen.
 - Vor Änderungen vorhandene Implementierung, offene Änderungen, Tests, Dokumentation und den konkreten aktuellen Auftrag prüfen.
 - Nie eine scheinbar „saubere“ Neuimplementierung über laufende Arbeiten legen. Keine fremden oder uncommitteten Änderungen überschreiben oder verwerfen.
 - **Kalender und Stundenplan** sind die zuerst priorisierten Fachfunktionen. Erforderliche Familienverwaltung/Berechtigungen, Push und Importfunktionen unterstützen diese erste Stufe.

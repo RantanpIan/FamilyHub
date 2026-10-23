@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { canAccessResource, canReadPersonalContent } from "@familyhub/authorization";
-import { PrivateContentAccessSchema } from "@familyhub/contracts";
+import {
+  canAccessResource,
+  canDeleteResource,
+  canReadResource,
+  canUpdateResource,
+  isResourceOwner,
+} from "@familyhub/authorization";
+import { ResourceIdSchema } from "@familyhub/contracts";
 import {
   familyA,
   familyB,
@@ -9,99 +15,120 @@ import {
 } from "../fixtures/families";
 
 describe("resource authorization policy", () => {
-  it("allows an owner to read and write their own resource", () => {
-    const actor = familyA.members.adult;
-    const request = makeAccessRequest(actor, familyA.resources.ownerPrivate);
+  it("allows the linked owner to read, update, and delete their private resource", () => {
+    const request = makeAccessRequest(
+      familyA.members.adult,
+      familyA.resources.ownerPrivate,
+    );
 
-    expect(canAccessResource(request)).toBe(true);
-    expect(
-      canAccessResource({ ...request, action: "write" }),
-    ).toBe(true);
-    expect(
-      canAccessResource(
-        makeAccessRequest(familyB.members.adult, familyB.resources.private),
-      ),
-    ).toBe(true);
+    expect(isResourceOwner(request)).toBe(true);
+    expect(canReadResource(request)).toBe(true);
+    expect(canUpdateResource({ ...request, action: "update" })).toBe(true);
+    expect(canDeleteResource({ ...request, action: "delete" })).toBe(true);
   });
 
-  it("does not give administrators or regular adults access to another member's private resource", () => {
+  it("does not let another family member or administrator read private resources", () => {
     expect(
-      canAccessResource(
-        makeAccessRequest(familyA.members.administrator, familyA.resources.ownerPrivate),
+      canReadResource(
+        makeAccessRequest(
+          familyA.members.administrator,
+          familyA.resources.ownerPrivate,
+        ),
       ),
     ).toBe(false);
     expect(
-      canAccessResource(
-        makeAccessRequest(familyA.members.adult, familyA.resources.administratorPrivate),
-      ),
-    ).toBe(false);
-  });
-
-  it("allows an explicitly granted reader and denies that reader after revocation", () => {
-    expect(
-      canAccessResource(
-        makeAccessRequest(familyA.members.childWithLogin, familyA.resources.explicitlyGranted),
-      ),
-    ).toBe(true);
-    expect(
-      canAccessResource(
-        makeAccessRequest(familyA.members.childWithLogin, familyA.resources.revokedGrant),
+      canReadResource(
+        makeAccessRequest(
+          familyA.members.adult,
+          familyA.resources.administratorPrivate,
+        ),
       ),
     ).toBe(false);
   });
 
-  it("does not apply a grant to a different resource ID", () => {
+  it("allows active family members to read family-visible resources only in their family", () => {
+    expect(
+      canReadResource(
+        makeAccessRequest(familyA.members.administrator, familyA.resources.shared),
+      ),
+    ).toBe(true);
+    expect(
+      canReadResource(
+        makeAccessRequest(familyB.members.adult, familyA.resources.shared),
+      ),
+    ).toBe(false);
+  });
+
+  it("allows a same-family read grant and denies access after revocation", () => {
+    expect(
+      canReadResource(
+        makeAccessRequest(
+          familyA.members.childWithLogin,
+          familyA.resources.explicitlyGranted,
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      canReadResource(
+        makeAccessRequest(
+          familyA.members.childWithLogin,
+          familyA.resources.revokedGrant,
+        ),
+      ),
+    ).toBe(false);
+  });
+
+  it("does not let a read grant authorize updates or deletion", () => {
+    const request = makeAccessRequest(
+      familyA.members.childWithLogin,
+      familyA.resources.explicitlyGranted,
+    );
+
+    expect(canUpdateResource({ ...request, action: "update" })).toBe(false);
+    expect(canDeleteResource({ ...request, action: "delete" })).toBe(false);
+    expect(canAccessResource({ ...request, action: "write" })).toBe(false);
+  });
+
+  it("does not honor grants for a different resource or family", () => {
     const request = makeAccessRequest(
       familyA.members.childWithLogin,
       familyA.resources.explicitlyGranted,
     );
 
     expect(
-      canAccessResource({
+      canReadResource({
         ...request,
         resourceId: familyA.resources.ownerPrivate.id,
       }),
     ).toBe(false);
-  });
-
-  it("allows family-visible reads only within the resource's family", () => {
     expect(
-      canAccessResource(
-        makeAccessRequest(familyA.members.administrator, familyA.resources.shared),
-      ),
-    ).toBe(true);
-    expect(
-      canAccessResource(
-        makeAccessRequest(familyA.members.administrator, familyB.resources.private),
-      ),
+      canReadResource({
+        ...request,
+        grants: [{
+          resourceId: familyA.resources.explicitlyGranted.id,
+          familyId: familyB.id,
+          granteeMemberId: familyA.members.childWithLogin.id,
+          permission: "read",
+          status: "active",
+        }],
+      }),
     ).toBe(false);
   });
 
-  it("denies writes to non-owners, including administrators and read-granted members", () => {
-    const sharedRequest = makeAccessRequest(
-      familyA.members.administrator,
-      familyA.resources.shared,
-      "write",
-    );
-    const grantedRequest = makeAccessRequest(
-      familyA.members.childWithLogin,
-      familyA.resources.explicitlyGranted,
-      "write",
-    );
-
-    expect(canAccessResource(sharedRequest)).toBe(false);
-    expect(canAccessResource(grantedRequest)).toBe(false);
-  });
-
-  it("denies a managed child profile without a login identity", () => {
+  it("denies access to managed profiles without a linked login", () => {
     expect(
-      canAccessResource(
+      canReadResource(
         makeAccessRequest(familyA.members.managedChild, familyA.resources.shared),
       ),
     ).toBe(false);
+    expect(
+      canReadResource(
+        makeAccessRequest(familyA.members.managedChild, familyA.resources.ownerPrivate),
+      ),
+    ).toBe(false);
   });
 
-  it("denies pending and revoked memberships", () => {
+  it("denies pending, revoked, and inactive memberships", () => {
     const pendingActor = {
       id: familyA.membershipActors[0].id,
       userId: familyA.membershipActors[0].userId,
@@ -110,59 +137,81 @@ describe("resource authorization policy", () => {
       id: familyA.membershipActors[1].id,
       userId: familyA.membershipActors[1].userId,
     };
+    const activeRequest = makeAccessRequest(
+      familyA.members.administrator,
+      familyA.resources.shared,
+    );
 
     expect(
-      canAccessResource(
-        makeAccessRequest(pendingActor, familyA.resources.shared),
-      ),
+      canReadResource(makeAccessRequest(pendingActor, familyA.resources.shared)),
     ).toBe(false);
     expect(
-      canAccessResource(
-        makeAccessRequest(revokedActor, familyA.resources.shared),
-      ),
+      canReadResource(makeAccessRequest(revokedActor, familyA.resources.shared)),
+    ).toBe(false);
+    expect(
+      canReadResource({
+        ...activeRequest,
+        actorMemberships: activeRequest.actorMemberships.map((membership) => ({
+          ...membership,
+          memberStatus: "inactive",
+        })),
+      }),
     ).toBe(false);
   });
 
-  it("fails closed for malformed resource IDs and invalid access requests", () => {
+  it("honors only memberships mapped to the authenticated actor", () => {
     const request = makeAccessRequest(
       familyA.members.administrator,
       familyA.resources.shared,
     );
 
-    expect(canAccessResource({ ...request, resourceId: "not-a-uuid" })).toBe(false);
-    expect(canAccessResource({ ...request, resourceFamilyId: "not-a-family" })).toBe(false);
-    expect(canAccessResource(null)).toBe(false);
+    expect(
+      canReadResource({
+        ...request,
+        actorUserId: syntheticIds.userAdultA,
+      }),
+    ).toBe(false);
   });
 
-  it("keeps the original read policy fail-closed for non-members", () => {
-    const input = PrivateContentAccessSchema.parse({
-      actorUserId: syntheticIds.userAdminA,
-      ownerUserId: syntheticIds.userAdultB,
-      familyId: familyB.id,
-      actorFamilyIds: [familyA.id],
-      visibility: "family",
-    });
+  it("applies a real multi-family account membership per family and visibility", () => {
+    const linkedAdminInFamilyB = familyB.members.linkedFamilyAAdministrator;
 
-    expect(canReadPersonalContent(input)).toBe(false);
+    expect(
+      canReadResource(
+        makeAccessRequest(linkedAdminInFamilyB, familyB.resources.private),
+      ),
+    ).toBe(false);
+    expect(
+      canReadResource(
+        makeAccessRequest(
+          linkedAdminInFamilyB,
+          {
+            ...familyB.resources.private,
+            id: ResourceIdSchema.parse("20000000-0000-4000-8000-000000000007"),
+            ownerMemberId: familyB.members.administrator.id,
+            visibility: "family",
+          },
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      canReadResource(
+        makeAccessRequest(familyA.members.administrator, familyB.resources.private),
+      ),
+    ).toBe(false);
   });
 
-  it("preserves owner and family-visible reads in the original read policy", () => {
-    const ownerAccess = PrivateContentAccessSchema.parse({
-      actorUserId: syntheticIds.userAdultA,
-      ownerUserId: syntheticIds.userAdultA,
-      familyId: familyA.id,
-      actorFamilyIds: [familyA.id],
-      visibility: "private",
-    });
-    const familyVisibleAccess = PrivateContentAccessSchema.parse({
-      actorUserId: syntheticIds.userAdminA,
-      ownerUserId: syntheticIds.userAdultA,
-      familyId: familyA.id,
-      actorFamilyIds: [familyA.id],
-      visibility: "family",
-    });
+  it("fails closed for malformed IDs, missing identities, and invalid requests", () => {
+    const request = makeAccessRequest(
+      familyA.members.administrator,
+      familyA.resources.shared,
+    );
 
-    expect(canReadPersonalContent(ownerAccess)).toBe(true);
-    expect(canReadPersonalContent(familyVisibleAccess)).toBe(true);
+    expect(canReadResource({ ...request, resourceId: "not-a-uuid" })).toBe(false);
+    expect(canReadResource({ ...request, resourceFamilyId: "not-a-family" })).toBe(false);
+    expect(canReadResource({ ...request, actorUserId: null })).toBe(false);
+    expect(canReadResource(null)).toBe(false);
+    expect(canUpdateResource(null)).toBe(false);
+    expect(canDeleteResource(null)).toBe(false);
   });
 });

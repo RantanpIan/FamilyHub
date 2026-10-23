@@ -28,5 +28,35 @@ qualify database objects and are executable only by `authenticated`. The
 family-listing RPC is `SECURITY INVOKER`. No role or membership can be changed
 from user metadata or browser input.
 
+`20261023094000_create_resource_access_model.sql` adds an authorization
+registry, not calendar/school/document payload tables. A resource references
+its family and owner member through a composite foreign key. `resource_grants`
+references both resource and recipient member in the same family, permits
+only `read`, and has one durable row per recipient so grant/revoke/regrant
+operations are idempotent.
+
+Resources default to `private` as a provisional security default. The product
+default remains open. An authenticated account can create a resource only for
+an active member profile linked to that account in that family. Active
+same-family members can read `family` resources; private resources are readable
+only by the linked owner or by an explicitly granted active member. Admin
+roles confer no private-resource exception. Owner-only operations are required
+for visibility changes, grants, revocations and deletion; read grants never
+grant update/delete access.
+
+SELECT, INSERT, UPDATE and DELETE have separate resource policies. Client table
+privileges do not permit resource field updates or direct grant writes.
+Visibility updates use an optimistic `expectedVersion` check. The narrow
+`SECURITY DEFINER` RPCs verify `auth.uid()`, current family/member status and
+ownership, set a fixed `search_path`, and are executable only by
+`authenticated`. Authorization helper functions return booleans and do not
+return resource metadata to non-readers.
+
+The migrations `20261022220000_create_user_profiles.sql` and
+`20261023070000_create_families.sql` are already applied in the development
+cloud project. Do not modify or rerun them as a correction; the new resource
+model is a separate additive migration and must only be applied in disposable
+test environments during this task.
+
 Later application tables must keep family data tenant-scoped and use
 PostgreSQL Row Level Security (RLS). Do not store real personal data in tests.

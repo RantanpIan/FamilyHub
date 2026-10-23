@@ -42,6 +42,7 @@ export type Database = {
         };
         Update: {
           display_name?: string;
+          status?: "active" | "inactive";
         };
         Relationships: [
           {
@@ -122,6 +123,96 @@ export type Database = {
           },
         ];
       };
+      resources: {
+        Row: {
+          id: string;
+          family_id: string;
+          owner_member_id: string;
+          resource_type: "calendar_event" | "school_item" | "import_artifact" | "task" | "document";
+          visibility: "private" | "family";
+          version: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          owner_member_id: string;
+          resource_type: "calendar_event" | "school_item" | "import_artifact" | "task" | "document";
+          visibility?: "private" | "family";
+        };
+        Update: {
+          family_id?: string;
+          owner_member_id?: string;
+          resource_type?: "calendar_event" | "school_item" | "import_artifact" | "task" | "document";
+          visibility?: "private" | "family";
+          version?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "resources_family_id_fkey";
+            columns: ["family_id"];
+            isOneToOne: false;
+            referencedRelation: "families";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "resources_owner_member_family_fk";
+            columns: ["owner_member_id", "family_id"];
+            isOneToOne: false;
+            referencedRelation: "family_members";
+            referencedColumns: ["id", "family_id"];
+          },
+        ];
+      };
+      resource_grants: {
+        Row: {
+          id: string;
+          resource_id: string;
+          family_id: string;
+          grantee_member_id: string;
+          permission: "read";
+          status: "active" | "revoked";
+          created_at: string;
+          updated_at: string;
+          revoked_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          resource_id: string;
+          family_id: string;
+          grantee_member_id: string;
+          permission?: "read";
+          status?: "active" | "revoked";
+          revoked_at?: string | null;
+        };
+        Update: {
+          resource_id?: string;
+          family_id?: string;
+          grantee_member_id?: string;
+          permission?: "read";
+          status?: "active" | "revoked";
+          updated_at?: string;
+          revoked_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "resource_grants_resource_family_fk";
+            columns: ["resource_id", "family_id"];
+            isOneToOne: false;
+            referencedRelation: "resources";
+            referencedColumns: ["id", "family_id"];
+          },
+          {
+            foreignKeyName: "resource_grants_member_family_fk";
+            columns: ["grantee_member_id", "family_id"];
+            isOneToOne: false;
+            referencedRelation: "family_members";
+            referencedColumns: ["id", "family_id"];
+          },
+        ];
+      };
       user_profiles: {
         Row: {
           user_id: string;
@@ -173,6 +264,42 @@ export type Database = {
           status: string;
           has_login: boolean;
         }[];
+      };
+      resource_actor_is_active_member: {
+        Args: { p_family_id: string; p_member_id: string };
+        Returns: boolean;
+      };
+      owns_resource: {
+        Args: { p_resource_id: string };
+        Returns: boolean;
+      };
+      can_read_resource: {
+        Args: { p_resource_id: string };
+        Returns: boolean;
+      };
+      can_update_resource: {
+        Args: { p_resource_id: string };
+        Returns: boolean;
+      };
+      can_delete_resource: {
+        Args: { p_resource_id: string };
+        Returns: boolean;
+      };
+      set_resource_visibility: {
+        Args: {
+          p_resource_id: string;
+          p_visibility: "private" | "family";
+          p_expected_version: number;
+        };
+        Returns: number;
+      };
+      grant_resource_read: {
+        Args: { p_resource_id: string; p_grantee_member_id: string };
+        Returns: string;
+      };
+      revoke_resource_read: {
+        Args: { p_resource_id: string; p_grantee_member_id: string };
+        Returns: boolean;
       };
     };
     Enums: { [_ in never]: never };
