@@ -92,9 +92,56 @@ jobs:
       - name: Run all resource ACL RLS cases (require 16/16)
         shell: bash
         run: |
-          set -o pipefail
-          npm run test:integration -- tests/integration/resource-access.rls.test.ts --reporter=default | tee acl-rls.log
-          grep -Fq "Tests 16 passed (16)" acl-rls.log
+          set -euo pipefail
+          npm run test:integration -- tests/integration/resource-access.rls.test.ts --reporter=json --outputFile=acl-rls-results.json
+          node <<'NODE'
+          const fs = require("node:fs");
+
+          const reportPath = "acl-rls-results.json";
+          if (!fs.existsSync(reportPath)) {
+            throw new Error(`Vitest JSON report is missing: ${reportPath}`);
+          }
+
+          const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+          const expectedSuiteSuffix = "/tests/integration/resource-access.rls.test.ts";
+          const suites = report.testResults;
+          if (!Array.isArray(suites) || suites.length !== 1) {
+            throw new Error("Expected exactly one Vitest test suite in the ACL report.");
+          }
+
+          const suite = suites[0];
+          const suitePath = typeof suite.name === "string"
+            ? suite.name.replaceAll("\\", "/")
+            : "";
+          if (!suitePath.endsWith(expectedSuiteSuffix) || suite.status !== "passed") {
+            throw new Error(`Unexpected or failed ACL test suite: ${suitePath || "(missing name)"}`);
+          }
+
+          const expectedCounts = {
+            numTotalTests: 16,
+            numPassedTests: 16,
+            numFailedTests: 0,
+            numPendingTests: 0,
+            numTodoTests: 0,
+          };
+          for (const [key, expected] of Object.entries(expectedCounts)) {
+            if (report[key] !== expected) {
+              throw new Error(`ACL report ${key}: expected ${expected}, received ${report[key]}`);
+            }
+          }
+
+          const assertions = suite.assertionResults;
+          if (
+            report.success !== true ||
+            !Array.isArray(assertions) ||
+            assertions.length !== 16 ||
+            assertions.some((assertion) => assertion.status !== "passed")
+          ) {
+            throw new Error("ACL report is unsuccessful, incomplete, skipped, or contains non-passing tests.");
+          }
+
+          console.log("ACL RLS gate passed: expected suite, 16 passed, 0 failed/skipped/todo.");
+          NODE
       - run: npm run test:integration
       - name: Stop local Supabase
         if: always()
