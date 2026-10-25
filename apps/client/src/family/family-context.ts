@@ -1,7 +1,10 @@
 import { createContext } from "react";
 import type {
+  CreateFamilyInvitationInput,
   CreateManagedMemberInput,
+  FamilyInvitation,
   FamilyMember,
+  FamilyMembershipSummary,
   FamilySummary,
   UpdateManagedMemberInput,
 } from "@familyhub/contracts";
@@ -12,6 +15,8 @@ export type FamilyContextValue = {
   families: FamilySummary[];
   selectedFamily: FamilySummary | null;
   members: FamilyMember[];
+  memberships: FamilyMembershipSummary[];
+  invitations: FamilyInvitation[];
   status: FamilyLoadStatus;
   membersStatus: FamilyLoadStatus;
   error: string | null;
@@ -23,8 +28,12 @@ export type FamilyContextValue = {
     memberId: string,
     input: UpdateManagedMemberInput,
   ) => Promise<void>;
-  refreshFamilies: () => Promise<void>;
+  refreshFamilies: (preferredFamilyId?: string) => Promise<void>;
   refreshMembers: () => Promise<void>;
+  createInvitation: (input: CreateFamilyInvitationInput) => Promise<string>;
+  revokeInvitation: (invitationId: string) => Promise<void>;
+  deactivateMembership: (membershipId: string) => Promise<void>;
+  acceptInvitation: (token: string) => Promise<void>;
 };
 
 export const FamilyContext = createContext<FamilyContextValue | null>(null);

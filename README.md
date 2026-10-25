@@ -1,7 +1,8 @@
 # FamilyHub
 
 FamilyHub ist eine geschützte Familienorganisations-App. Die Foundation
-enthält Supabase Auth, private Benutzerprofile, Familienverwaltung und einen
+enthält Supabase Auth, private Benutzerprofile, Familienverwaltung, sichere
+Familieneinladungen und einen
 gemeinsamen RLS-geschützten Berechtigungskern. Kalender, Aufgaben, Schule und
 Benachrichtigungen bleiben sichtbar als noch nicht verfügbar markiert.
 
@@ -73,7 +74,7 @@ packages/authorization      typisierte fail-closed Beispiel-Policy
 packages/calendar-domain   Kalender-Fachmodul (noch nicht verfügbar)
 packages/school-domain     Schul-Fachmodul (noch nicht verfügbar)
 packages/notifications-domain Benachrichtigungs-Fachmodul (noch nicht verfügbar)
-supabase/migrations         versionierte Profil-, Familien- und Ressourcen-RLS-Migrationen
+supabase/migrations         versionierte Profil-, Familien-, Einladungs- und Ressourcen-RLS-Migrationen
 supabase/functions          vorbereitet; keine Produktivfunktionen
 tests                       Unit-, PostgreSQL/RLS-Integration und Playwright-E2E-Tests
 docs                        Architektur, Anforderungen und ADRs
@@ -130,6 +131,18 @@ Standard-Sichtbarkeit bleiben offen. Der wiederverwendbare Client-Zugang zu
 diesem Modell liegt in `apps/client/src/access`; die Datenbank-RLS bleibt die
 maßgebliche Sicherheitsgrenze.
 
+Familienadministratoren können ein vorhandenes Erwachsenenprofil per
+Einladungslink mit einem eigenen Konto verknüpfen. PostgreSQL erzeugt dafür
+einen einmaligen 256-Bit-Code und speichert nur dessen SHA-256-Hash; der Link
+läuft nach sieben Tagen ab. Zur Annahme sind eine Anmeldung, eine bestätigte
+und übereinstimmende Konto-E-Mail-Adresse sowie eine ausdrückliche Bestätigung
+nötig. Der Link wird manuell kopiert; automatischer E-Mail-Versand ist nicht
+enthalten. Mitgliedschaftsänderungen laufen über autorisierte RPCs.
+Deaktivierung löscht weder Familienmitglied noch Ressourcen und kann die letzte
+aktive Administrator-Mitgliedschaft nicht entfernen. Rollenänderungen,
+Kinderkonto-Aktivierung und Eltern-/Kindervertretung bleiben wegen der offenen
+Rollenmatrix gesperrt. Einladungs-Tokens werden nicht protokolliert.
+
 Push-Empfänger werden später über Mitglieds-IDs adressiert, mit einer
 expliziten Option „Alle“.
 Diese Grenzen und die Modul-Abhängigkeitsrichtung sind in
@@ -140,16 +153,20 @@ dokumentiert.
 
 Tests verwenden ausschließlich synthetische Identitäten und UUIDs. `.env` wird
 ignoriert und `.env.example` enthält nur leere Platzhalter. Auth-/Profil-,
-Familien- und Ressourcen-RLS-Integrationstests laufen gegen eine lokale, wegwerfbare
+Familien-, Einladungs- und Ressourcen-RLS-Integrationstests laufen gegen eine lokale, wegwerfbare
 Supabase-Instanz; für ein reales Projekt muss die Auth-Redirect-Allowlist
-zusätzlich konfiguriert werden. Einladungen, Rollenwechsel und Fachressourcen,
-Push-Zustellung sowie Hosting-Konfiguration sind nicht implementiert.
+zusätzlich konfiguriert werden. Rollenwechsel, Kinderkonto-Aktivierung und
+Fachressourcen, Push-Zustellung sowie Hosting-Konfiguration sind nicht
+implementiert.
 
-## Vorbereitung für FH-CX-006
+## FH-CX-006: Einladungen und Mitgliedschaften
 
-Bereit sind Workspace- und UI-Grundlagen, gemeinsame validierte Verträge,
-Supabase Auth, private Profile mit RLS, sichere Auth-Redirects, atomare
-Familienanlage, familiengebundene Mitgliedschaften, verwaltete Profile sowie
-der generische Ressourcen-/Freigabekern. Einladungen, Kontoverknüpfungen,
-Rollenwechsel, fachliche Inhalte und eine Freigabe-Oberfläche bleiben
-Folgeaufträgen vorbehalten.
+Einladungen für bestehende aktive Erwachsenenprofile verwenden zufällige,
+gehashte, sieben Tage gültige Tokens und erfordern die ausdrückliche Annahme
+durch ein authentifiziertes Konto mit bestätigter, passender E-Mail-Adresse.
+Mitgliedschaften können sicher widerrufen/deaktiviert werden; direkte
+Tabellenänderungen bleiben gesperrt. Die lokale Abnahme umfasst PostgreSQL-RLS-,
+Playwright-, Unit-, Typecheck-, Lint- und Produktionsbuild-Prüfungen. Ein
+GitHub-Actions-Lauf ist nicht bestätigt. Rollenwechsel,
+Kinderkonto-Aktivierung, fachliche Inhalte und automatische
+E-Mail-Zustellung bleiben Folgeaufträgen vorbehalten.

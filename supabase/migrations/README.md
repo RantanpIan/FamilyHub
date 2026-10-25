@@ -70,5 +70,17 @@ an application error (`P0001`), not SQLSTATE `40001` which denotes a database
 serialization failure. This prevents the PostgREST transaction layer from
 retrying a known application-level conflict.
 
+`20261023170000_add_family_invitations_and_membership_management.sql` adds a
+hash-only invitation table with no direct client table grants. Its authenticated
+RPCs bind creation/listing/revocation to a current family administrator;
+preview and acceptance require a confirmed Auth email matching the invitation.
+Acceptance locks the invitation and target member and inserts/reactivates the
+existing member's membership atomically. Codes are server-generated, 256-bit,
+one-use, and expire after seven days. Repeated acceptance by the same account
+is idempotent. Membership deactivation is admin-only, preserves the person and
+resources, and cannot remove the last active family administrator. The current
+role is fixed to `adult`; uncertain child or role-change permissions remain
+disabled pending `FH-OPEN-001`.
+
 Later application tables must keep family data tenant-scoped and use
 PostgreSQL Row Level Security (RLS). Do not store real personal data in tests.

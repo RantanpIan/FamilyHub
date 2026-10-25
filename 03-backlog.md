@@ -1,7 +1,7 @@
 # FamilyHub – Backlog und Umsetzungssteuerung
 
-> **Stand:** 22.10.2026, Dokumentationsexport.  
-> **Wichtig:** FH-CX-001 bis FH-CX-004 sind abgeschlossen; FH-CX-004 wurde mit Commit `8277346` einschließlich erfolgreichem CI-Fix bestätigt. `FH-CX-005` ist in Umsetzung. Andere Auftragsstände sind nicht verifiziert.
+> **Stand:** 23.10.2026, Dokumentationsexport.
+> **Wichtig:** FH-CX-001 bis FH-CX-004 sind abgeschlossen; FH-CX-004 wurde mit Commit `8277346` einschließlich erfolgreichem CI-Fix bestätigt. `FH-CX-005` ist implementiert; FH-CX-006 ist implementiert und lokal mit RLS-, E2E-, Unit-, Typecheck-, Lint- und Build-Prüfungen validiert. Ein GitHub-Actions-Lauf für FH-CX-006 ist nicht bestätigt. Andere Auftragsstände sind nicht verifiziert.
 > **Quellenlage:** Die frühere Planung umfasste **34 Codex-Aufträge (FH-CX-001 bis FH-CX-034)**. Die Phasenblöcke und einige Abhängigkeiten sind überliefert; **Originaltitel und exakte Akzeptanzkriterien aller einzelnen Aufträge sind nicht vollständig verfügbar**. Dieses Dokument erzeugt ausdrücklich **keine** Ersatzaufträge und erklärt keinen Auftrag für abgeschlossen.
 
 ## 1. Arbeitsmodell
@@ -47,8 +47,8 @@ Die Sammelbezeichnungen der Gruppen sind **keine** rekonstruierten Originaltitel
 | FH-CX-002 | Foundation | **Testfundament und synthetische Testdaten** | **Abgeschlossen** |
 | FH-CX-003 | Benutzer und Familien | **Supabase Auth und Benutzerprofile** | **Abgeschlossen** |
 | FH-CX-004 | Familienverwaltung | **Familienverwaltung und Familienmitglieder** | **Abgeschlossen** |
-| FH-CX-005 | Identity / Family / Access | **Ressourcenberechtigungen, Eigentümerschaft und private Inhalte** | **In Umsetzung** |
-| FH-CX-006 | Foundation | Originalauftrag ergänzen | Nicht verifiziert |
+| FH-CX-005 | Identity / Family / Access | **Ressourcenberechtigungen, Eigentümerschaft und private Inhalte** | **Implementiert; Abnahme gesondert nachweisen** |
+| FH-CX-006 | Identity / Family / Access | **Familieneinladungen, Mitgliedschaften und Rollenverwaltung** | **Lokal umgesetzt und validiert; Rollenänderungen nach FH-OPEN-001 gesperrt; GitHub Actions nicht bestätigt** |
 | FH-CX-007 | Foundation | Originalauftrag ergänzen | Nicht verifiziert |
 | FH-CX-008 | Kalender | Originalauftrag ergänzen | Nicht verifiziert |
 | FH-CX-009 | Kalender | Originalauftrag ergänzen | Nicht verifiziert |

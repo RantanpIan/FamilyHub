@@ -15,6 +15,7 @@ import { getCallbackFlow } from "./auth/auth-utils";
 import { ProfileScreen } from "./auth/ProfileScreen";
 import { FamilyOnboarding } from "./family/FamilyOnboarding";
 import { FamilyManagement } from "./family/FamilyManagement";
+import { FamilyInvitationAcceptance } from "./family/FamilyInvitationAcceptance";
 import { useFamily } from "./family/useFamily";
 
 const navigation = [
@@ -148,13 +149,27 @@ function PageContent({ page }: { page: PageId }) {
   );
 }
 
-type AppRoute = "/auth" | "/app" | "/profile";
+const invitationStorageKey = "familyhub.pending-invitation";
+
+type AppRoute = "/auth" | "/app" | "/profile" | "/invite";
+
+function getPendingInvitationToken(): string | null {
+  const urlToken = new URLSearchParams(window.location.hash.slice(1)).get("token");
+  if (urlToken && /^[A-Za-z0-9_-]{43}$/.test(urlToken)) {
+    return urlToken;
+  }
+  const storedToken = window.sessionStorage.getItem(invitationStorageKey);
+  return storedToken && /^[A-Za-z0-9_-]{43}$/.test(storedToken)
+    ? storedToken
+    : null;
+}
 
 function currentRoute(): AppRoute {
   if (
     window.location.pathname === "/auth" ||
     window.location.pathname === "/app" ||
-    window.location.pathname === "/profile"
+    window.location.pathname === "/profile" ||
+    window.location.pathname === "/invite"
   ) {
     return window.location.pathname;
   }
@@ -165,6 +180,9 @@ export default function App() {
   const auth = useAuth();
   const family = useFamily();
   const [route, setRoute] = useState<AppRoute>(currentRoute);
+  const [pendingInvitationToken, setPendingInvitationToken] = useState<string | null>(
+    getPendingInvitationToken,
+  );
   const [profileRetrying, setProfileRetrying] = useState(false);
   const callbackFlow = getCallbackFlow(window.location.search);
 
@@ -184,10 +202,26 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const token = new URLSearchParams(window.location.hash.slice(1)).get("token");
+    if (token && /^[A-Za-z0-9_-]{43}$/.test(token)) {
+      window.sessionStorage.setItem(invitationStorageKey, token);
+      window.history.replaceState(null, "", "/invite");
+    }
+  }, []);
+
+  useEffect(() => {
     if (auth.status !== "ready" && auth.status !== "unconfigured") {
       return;
     }
-    if (!auth.user && route !== "/auth") {
+    if (
+      auth.user &&
+      pendingInvitationToken &&
+      route !== "/invite" &&
+      callbackFlow !== "password-recovery" &&
+      !auth.passwordRecovery
+    ) {
+      window.location.replace("/invite");
+    } else if (!auth.user && route !== "/auth" && route !== "/invite") {
       window.history.replaceState(null, "", "/auth");
     } else if (
       auth.user &&
@@ -197,7 +231,14 @@ export default function App() {
     ) {
       window.history.replaceState(null, "", "/app");
     }
-  }, [auth.status, auth.user, auth.passwordRecovery, callbackFlow, route, navigate]);
+  }, [
+    auth.status,
+    auth.user,
+    auth.passwordRecovery,
+    callbackFlow,
+    route,
+    pendingInvitationToken,
+  ]);
 
   if (auth.status === "loading") {
     return (
@@ -212,6 +253,7 @@ export default function App() {
       <AuthScreen
         initialMode={callbackFlow === "password-recovery" ? "recovery" : "sign-in"}
         onNavigate={navigate}
+        returnToInvite={route === "/invite"}
       />
     );
   }
@@ -250,6 +292,28 @@ export default function App() {
     auth.passwordRecovery
   ) {
     return <AuthScreen initialMode="recovery" onNavigate={navigate} />;
+  }
+
+  if (route === "/invite") {
+    return (
+      <FamilyInvitationAcceptance
+        token={pendingInvitationToken}
+        onAccepted={() => {
+          window.sessionStorage.removeItem(invitationStorageKey);
+          setPendingInvitationToken(null);
+          navigate("/app", true);
+        }}
+        onCancel={() => {
+          window.sessionStorage.removeItem(invitationStorageKey);
+          setPendingInvitationToken(null);
+          navigate("/app", true);
+        }}
+        onSwitchAccount={async () => {
+          await auth.signOut();
+          navigate("/invite", true);
+        }}
+      />
+    );
   }
 
   if (route === "/profile") {

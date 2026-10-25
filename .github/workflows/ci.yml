@@ -48,6 +48,7 @@ jobs:
             echo "SUPABASE_E2E_URL=$API_URL"
             echo "SUPABASE_E2E_ANON_KEY=$ANON_KEY"
             echo "SUPABASE_E2E_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "SUPABASE_E2E_EMAIL_URL=http://127.0.0.1:54324"
           } >> "$GITHUB_ENV"
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e

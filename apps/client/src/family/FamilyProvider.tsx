@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import type {
+  CreateFamilyInvitationInput,
   CreateManagedMemberInput,
   FamilySummary,
   UpdateManagedMemberInput,
@@ -13,10 +14,16 @@ import type {
 import { getErrorMessage } from "../auth/auth-utils";
 import { useAuth } from "../auth/useAuth";
 import {
+  acceptFamilyInvitation,
   createFamily as createFamilyRequest,
+  createFamilyInvitation as createFamilyInvitationRequest,
   createManagedMember as createManagedMemberRequest,
+  deactivateFamilyMembership,
+  listFamilyInvitationsAdmin,
   listFamilyMembers,
+  listFamilyMembershipsAdmin,
   listMyFamilies,
+  revokeFamilyInvitation,
   updateManagedMember as updateManagedMemberRequest,
 } from "./family-service";
 import {
@@ -31,6 +38,8 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
   const [familiesUserId, setFamiliesUserId] = useState<string | null>(null);
   const [selectedFamilyId, setSelectedFamilyId] = useState<string | null>(null);
   const [members, setMembers] = useState<FamilyContextValue["members"]>([]);
+  const [memberships, setMemberships] = useState<FamilyContextValue["memberships"]>([]);
+  const [invitations, setInvitations] = useState<FamilyContextValue["invitations"]>([]);
   const [membersFamilyId, setMembersFamilyId] = useState<string | null>(null);
   const [status, setStatus] = useState<FamilyLoadStatus>("loading");
   const [membersStatus, setMembersStatus] = useState<FamilyLoadStatus>("ready");
@@ -38,7 +47,7 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
   const [membersError, setMembersError] = useState<string | null>(null);
   const [memberReload, setMemberReload] = useState(0);
 
-  const refreshFamilies = useCallback(async () => {
+  const refreshFamilies = useCallback(async (preferredFamilyId?: string) => {
     if (!user) {
       setFamilies([]);
       setFamiliesUserId(null);
@@ -53,9 +62,11 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
       setFamilies(nextFamilies);
       setFamiliesUserId(user.id);
       setSelectedFamilyId((currentId) =>
-        nextFamilies.some((family) => family.family_id === currentId)
-          ? currentId
-          : nextFamilies[0]?.family_id ?? null,
+        nextFamilies.some((family) => family.family_id === preferredFamilyId)
+          ? preferredFamilyId ?? null
+          : nextFamilies.some((family) => family.family_id === currentId)
+            ? currentId
+            : nextFamilies[0]?.family_id ?? null,
       );
       setStatus("ready");
     } catch (loadError) {
@@ -121,6 +132,8 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
   const refreshMembers = useCallback(async () => {
     if (!selectedFamily) {
       setMembers([]);
+      setMemberships([]);
+      setInvitations([]);
       setMembersStatus("ready");
       setMembersError(null);
       return;
@@ -129,7 +142,18 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     setMembersStatus("loading");
     setMembersError(null);
     try {
-      setMembers(await listFamilyMembers(selectedFamily.family_id));
+      const nextMembers = await listFamilyMembers(selectedFamily.family_id);
+      let nextMemberships: FamilyContextValue["memberships"] = [];
+      let nextInvitations: FamilyContextValue["invitations"] = [];
+      if (selectedFamily.role === "family_admin") {
+        [nextMemberships, nextInvitations] = await Promise.all([
+          listFamilyMembershipsAdmin(selectedFamily.family_id),
+          listFamilyInvitationsAdmin(selectedFamily.family_id),
+        ]);
+      }
+      setMembers(nextMembers);
+      setMemberships(nextMemberships);
+      setInvitations(nextInvitations);
       setMembersFamilyId(selectedFamily.family_id);
       setMembersStatus("ready");
     } catch (loadError) {
@@ -145,9 +169,22 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    void listFamilyMembers(selectedFamily.family_id).then((nextMembers) => {
+    void (async () => {
+      const nextMembers = await listFamilyMembers(selectedFamily.family_id);
+      let nextMemberships: FamilyContextValue["memberships"] = [];
+      let nextInvitations: FamilyContextValue["invitations"] = [];
+      if (selectedFamily.role === "family_admin") {
+        [nextMemberships, nextInvitations] = await Promise.all([
+          listFamilyMembershipsAdmin(selectedFamily.family_id),
+          listFamilyInvitationsAdmin(selectedFamily.family_id),
+        ]);
+      }
+      return { nextMembers, nextMemberships, nextInvitations };
+    })().then(({ nextMembers, nextMemberships, nextInvitations }) => {
       if (active) {
         setMembers(nextMembers);
+        setMemberships(nextMemberships);
+        setInvitations(nextInvitations);
         setMembersFamilyId(selectedFamily.family_id);
         setMembersStatus("ready");
         setMembersError(null);
@@ -155,6 +192,8 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     }).catch((loadError: unknown) => {
       if (active) {
         setMembersFamilyId(selectedFamily.family_id);
+        setMemberships([]);
+        setInvitations([]);
         setMembersStatus("error");
         setMembersError(getErrorMessage(loadError));
       }
@@ -206,10 +245,45 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     setMemberReload((current) => current + 1);
   }, [selectedFamily]);
 
+  const createInvitation = useCallback(async (
+    input: CreateFamilyInvitationInput,
+  ) => {
+    if (!selectedFamily || selectedFamily.role !== "family_admin") {
+      throw new Error("Nur Familienadministratoren können Einladungen erstellen.");
+    }
+    const token = await createFamilyInvitationRequest(selectedFamily.family_id, input);
+    setMemberReload((current) => current + 1);
+    return token;
+  }, [selectedFamily]);
+
+  const revokeInvitation = useCallback(async (invitationId: string) => {
+    if (!selectedFamily || selectedFamily.role !== "family_admin") {
+      throw new Error("Nur Familienadministratoren können Einladungen widerrufen.");
+    }
+    await revokeFamilyInvitation(invitationId);
+    setMemberReload((current) => current + 1);
+  }, [selectedFamily]);
+
+  const deactivateMembership = useCallback(async (membershipId: string) => {
+    if (!selectedFamily || selectedFamily.role !== "family_admin") {
+      throw new Error("Nur Familienadministratoren können Mitgliedschaften verwalten.");
+    }
+    await deactivateFamilyMembership(membershipId);
+    setMemberReload((current) => current + 1);
+    await refreshFamilies();
+  }, [refreshFamilies, selectedFamily]);
+
+  const acceptInvitation = useCallback(async (token: string) => {
+    const familyId = await acceptFamilyInvitation(token);
+    await refreshFamilies(familyId);
+  }, [refreshFamilies]);
+
   const value = useMemo<FamilyContextValue>(() => ({
     families: visibleFamilies,
     selectedFamily,
     members: selectedFamily?.family_id === membersFamilyId ? members : [],
+    memberships: selectedFamily?.family_id === membersFamilyId ? memberships : [],
+    invitations: selectedFamily?.family_id === membersFamilyId ? invitations : [],
     status: effectiveStatus,
     membersStatus:
       selectedFamily && selectedFamily.family_id !== membersFamilyId
@@ -224,10 +298,16 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     updateManagedMember,
     refreshFamilies,
     refreshMembers,
+    createInvitation,
+    revokeInvitation,
+    deactivateMembership,
+    acceptInvitation,
   }), [
     visibleFamilies,
     selectedFamily,
     members,
+    memberships,
+    invitations,
     membersFamilyId,
     effectiveStatus,
     membersStatus,
@@ -239,6 +319,10 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     updateManagedMember,
     refreshFamilies,
     refreshMembers,
+    createInvitation,
+    revokeInvitation,
+    deactivateMembership,
+    acceptInvitation,
   ]);
 
   return <FamilyContext.Provider value={value}>{children}</FamilyContext.Provider>;

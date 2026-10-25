@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   CreateFamilyInputSchema,
+  CreateFamilyInvitationInputSchema,
   CreateManagedMemberInputSchema,
   CreateResourceInputSchema,
   FamilyMemberSchema,
+  FamilyInvitationPreviewSchema,
   FamilySummarySchema,
   FamilyIdSchema,
   FamilyMemberIdSchema,
@@ -71,6 +73,40 @@ describe("shared Zod contracts", () => {
         member_type: "child",
         status: "active",
         has_login: false,
+      }).success,
+    ).toBe(true);
+  });
+
+  it("validates invitation inputs and previews without accepting client-supplied roles", () => {
+    const email = "adult@example.com";
+    const targetMemberId = "00000000-0000-4000-8000-000000000004";
+    expect(
+      CreateFamilyInvitationInputSchema.parse({
+        targetMemberId,
+        email: ` ${email.toUpperCase()} `,
+      }),
+    ).toEqual({ targetMemberId, email });
+    expect(
+      CreateFamilyInvitationInputSchema.safeParse({
+        targetMemberId: "not-a-uuid",
+        email,
+      }).success,
+    ).toBe(false);
+    expect(
+      CreateFamilyInvitationInputSchema.safeParse({
+        targetMemberId,
+        email: "invalid",
+        role: "family_admin",
+      }).success,
+    ).toBe(false);
+    expect(
+      FamilyInvitationPreviewSchema.safeParse({
+        family_id: "d1169748-1b21-4b9f-a35a-ec07a7d58b0e",
+        family_name: "Synthetic family",
+        target_member_id: targetMemberId,
+        target_member_name: "Synthetic adult",
+        role: "adult",
+        expires_at: "2026-10-30T08:00:00.000Z",
       }).success,
     ).toBe(true);
   });

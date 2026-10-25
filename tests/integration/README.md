@@ -1,6 +1,6 @@
 # Integrationstests
 
-Für FH-CX-003 bis FH-CX-005 gibt es Auth-/Profil-, Familien- und
+Für FH-CX-003 bis FH-CX-006 gibt es Auth-/Profil-, Familien-, Einladungs- und
 Ressourcen-RLS-
 Integrationstests gegen eine echte lokale Supabase-/PostgreSQL-Instanz. Ein
 Testlauf ohne laufende Instanz ist kein Erfolgsnachweis.
@@ -25,6 +25,9 @@ Voraussetzungen für die vorhandenen Supabase-/PostgreSQL-RLS-Tests:
   familienweiter Sichtbarkeit, expliziten Lesefreigaben, Widerruf,
   Mitgliedschaftsstatus, Cross-Family-Constraints sowie getrennten Lese- und
   Schreibrechten.
+- Einladungscodes und Ablauf, E-Mail-Verifikation, Familienisolation,
+  idempotente/konkurrierende Annahme, Deaktivierung und Schutz der letzten
+  Administrator-Mitgliedschaft.
 
 Vorhandene Unit-Tests für die reine TypeScript-Policy ersetzen diese Prüfungen
 nicht. Der Befehl lautet `npm run test:integration`. Ohne die drei erforderlichen
@@ -55,6 +58,15 @@ vollständige Integrationstest-Suite startet. Damit führen fehlende
 fehlgeschlagenen Job und nicht zu einem grünen Lauf. Sämtliche
 privilegierten Testschlüssel werden pro Lauf von der lokalen Supabase-Instanz
 ausgegeben; Cloud-Projekt-Zugangsdaten werden nicht verwendet.
+
+`family-invitations.rls.test.ts` prüft Einladungs-RPCs mit synthetischen
+Auth-Sitzungen. `service_role` dient ausschließlich Testnutzern,
+Mitgliedschafts-Fixtures und der unabhängigen Prüfung/Änderung von
+Wegwerf-Testdaten; es beweist keine Benutzerberechtigung. Normale Clients
+können die Einladungstabelle nicht direkt lesen oder verändern. Erstellen,
+Anzeigen, Vorschau, Annahme, Widerruf und Deaktivierung laufen über
+serverseitig autorisierte RPCs. Die Testidentitäten und Familien werden nur in
+der lokalen isolierten Supabase-Instanz verwendet und bereinigt.
 
 ## FH-CX-005-FIX-01 – CI-Lauf #7
 

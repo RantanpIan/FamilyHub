@@ -31,6 +31,7 @@
 | FH-DEC-022 | FH-CX-001 wurde abgeschlossen und die Foundation ist Basis für FH-CX-002 | Durch vorherigen Auftragsabschluss bestätigt | Bestehende Foundation bewahren und Folgeaufträge darauf aufbauen |
 | FH-DEC-023 | FH-CX-002 ist abgeschlossen; FH-CX-003 baut auf dem grünen CI-Stand `58a6fa1` auf | Nutzer-Screenshot des GitHub-Actions-Laufs | Testfundament bleibt erhalten; neue RLS-Integration wird separat geprüft |
 | FH-DEC-024 | FH-CX-004 verwendet einen transaktionalen, idempotenten `create_family`-RPC; spätere Mitgliedsänderungen laufen über RLS-geschützte Tabellenzugriffe | FH-CX-004-Anforderung für atomare Erstanlage und serverseitige Autorisierung | Kein Auth-Trigger oder Service-Role-Key im Client; Familienkontext bleibt eine nicht vertrauenswürdige Anfrage |
+| FH-DEC-025 | FH-CX-006 implementiert gehashte, sieben Tage gültige Erwachseneneinladungen und atomare Annahme; nur bestehende aktive Erwachsenenprofile sind einladbar | FH-CX-006-Auftrag; neue Rollen- und Kinderrechte bleiben gesperrt | E-Mail muss serverseitig bestätigt und passend sein; direkte Tabellenwrites bleiben gesperrt; Annahme erfordert explizite Bestätigung |
 
 ## 2. Konkretisierte Regeln – keine neuen Baseline-Entscheidungen
 
@@ -45,6 +46,12 @@ Folgende Regeln sind sichere Ableitungen aus den beschlossenen Prinzipien und m�
 - Fehlende Freigaben werden serverseitig und per RLS abgelehnt.
 
 **Diese Konkretisierungen sind kein Ersatz für das detaillierte Autorisierungs-, Import- und Benachrichtigungskonzept.**
+
+Für FH-CX-006 gilt zusätzlich: Die Einladung zu einem bestehenden, aktiven
+Erwachsenenprofil verwendet ausschließlich die vorhandene Rolle `adult`.
+Rollenänderungen und Kinderkonto-Aktivierung bleiben wegen `FH-OPEN-001` und
+der offenen Eltern-/Kinderrechte deaktiviert; die UI darf diese Änderungen
+nicht anbieten und die RPCs erlauben sie nicht.
 
 ## 3. Offene Entscheidungen / Prüfung gegen Originalunterlagen
 

@@ -6,6 +6,7 @@ import type { Database } from "../../apps/client/src/auth/database.types";
 const supabaseUrl = process.env["SUPABASE_E2E_URL"];
 const anonKey = process.env["SUPABASE_E2E_ANON_KEY"];
 const serviceRoleKey = process.env["SUPABASE_E2E_SERVICE_ROLE_KEY"];
+const emailApiUrl = process.env["SUPABASE_E2E_EMAIL_URL"];
 const canRunAgainstSupabase = Boolean(supabaseUrl && anonKey && serviceRoleKey);
 
 async function createConfirmedUser() {
@@ -104,4 +105,153 @@ test.describe("family onboarding with a disposable Supabase backend", () => {
       );
     });
   });
+
+  test("INV-T01, T06, T07: an invited adult joins through the existing profile", async ({ page, browser }) => {
+    test.skip(
+      !emailApiUrl,
+      "Blocked: configure the disposable Supabase Mailpit URL to verify signup confirmation.",
+    );
+    await withConfirmedUser(async (adminUser) => {
+        const inviteeEmail = `fh-cx-006-e2e-${randomUUID()}@example.com`;
+        const inviteePassword = "Synthetic-Family-Invitee-Password-2026!";
+        const familyName = `Synthetic invitation E2E family ${randomUUID()}`;
+        const inviteeContext = await browser.newContext();
+        let testError: unknown = null;
+        try {
+          await page.goto("/auth");
+          await page.getByLabel("E-Mail-Adresse").fill(adminUser.email);
+          await page.getByLabel("Passwort", { exact: true }).fill(adminUser.password);
+          await page.getByRole("button", { name: "Anmelden" }).click();
+          await expect(page.getByRole("heading", { name: "Erstelle eure Familie" })).toBeVisible();
+          await page.getByLabel("Familienname").fill(familyName);
+          await page.getByRole("button", { name: "Familie erstellen" }).click();
+          await expect(page.getByTestId("app-shell")).toBeVisible();
+          await page.getByRole("button", { name: "Mehr" }).click();
+          await expect(page.getByRole("heading", { name: familyName })).toBeVisible();
+          await page.getByLabel("Name des Familienmitglieds").fill("Synthetic invited profile");
+          await page.getByLabel("Profiltyp").selectOption("adult");
+          await page.getByRole("button", { name: "Mitglied hinzufügen" }).click();
+          await expect(
+            page.getByRole("list", { name: "Familienmitglieder" }).getByText(
+              "Synthetic invited profile",
+              { exact: true },
+            ),
+          ).toBeVisible();
+
+          await page.getByLabel("Vorhandenes Erwachsenenprofil").selectOption({
+            label: "Synthetic invited profile",
+          });
+          await page.getByLabel("E-Mail-Adresse").fill(inviteeEmail);
+          await page.getByRole("button", { name: "Einladung erstellen" }).click();
+          await expect(page.getByRole("button", { name: "Einladungslink kopieren" })).toBeVisible();
+          await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+          await page.getByRole("button", { name: "Einladungslink kopieren" }).click();
+          const invitationLink = await page.evaluate(() => navigator.clipboard.readText());
+          expect(invitationLink).toMatch(/\/invite#token=[A-Za-z0-9_-]{43}$/);
+
+          const inviteePage = await inviteeContext.newPage();
+          await inviteePage.goto(invitationLink);
+          await inviteePage.getByRole("button", { name: "Registrieren" }).click();
+          await inviteePage.getByLabel("Anzeigename").fill("Synthetic invited adult");
+          await inviteePage.getByLabel("E-Mail-Adresse").fill(inviteeEmail);
+          await inviteePage.getByLabel("Passwort", { exact: true }).fill(inviteePassword);
+          await inviteePage.getByLabel("Passwort wiederholen").fill(inviteePassword);
+          await inviteePage.getByRole("button", { name: "Konto erstellen" }).click();
+          await expect(inviteePage.getByRole("heading", { name: "E-Mail bestätigen" })).toBeVisible();
+          const confirmationLink = await readConfirmationLink(inviteeEmail);
+          await inviteePage.goto(confirmationLink);
+          await expect(
+            inviteePage.getByText(/Synthetic invited profile.*Synthetic invitation E2E family/),
+          ).toBeVisible();
+          await inviteePage.getByRole("button", { name: "Familieneinladung annehmen" }).click();
+          await expect(inviteePage.getByTestId("app-shell")).toBeVisible();
+          await inviteePage.getByRole("button", { name: "Mehr" }).click();
+          const invitedMember = inviteePage.locator(".family-member-card").filter({
+            hasText: "Synthetic invited profile",
+          });
+          await expect(invitedMember.getByText("Konto verbunden")).toBeVisible();
+        } catch (error) {
+          testError = error;
+        }
+        let contextCleanupError: unknown = null;
+        try {
+          await inviteeContext.close();
+        } catch (error) {
+          contextCleanupError = error;
+        }
+        const { data: users, error: listError } = await adminUser.admin.auth.admin.listUsers({
+          page: 1,
+          perPage: 1000,
+        });
+        const { data: family, error: familyLookupError } = await adminUser.admin
+          .from("families")
+          .select("id")
+          .eq("name", familyName)
+          .maybeSingle();
+        const familyDeleteError = familyLookupError ?? (
+          family
+            ? (await adminUser.admin.from("families").delete().eq("id", family.id)).error
+            : null
+        );
+        const inviteeUser = users.users.find(
+          (candidate) => candidate.email?.toLowerCase() === inviteeEmail.toLowerCase(),
+        );
+        const inviteeDeleteError = (
+          inviteeUser
+            ? (await adminUser.admin.auth.admin.deleteUser(inviteeUser.id)).error
+            : null
+        );
+        const cleanupError = listError ?? familyDeleteError ?? inviteeDeleteError;
+        if (testError) {
+          throw testError;
+        }
+        if (contextCleanupError) {
+          throw contextCleanupError;
+        }
+        if (cleanupError) {
+          throw cleanupError;
+        }
+    });
+  });
+
+    async function readConfirmationLink(email: string): Promise<string> {
+      if (!emailApiUrl) {
+        throw new Error("The disposable Supabase email API is not configured.");
+      }
+      const messagesUrl = new URL("/api/v1/messages", emailApiUrl);
+      messagesUrl.searchParams.set("start", "0");
+      messagesUrl.searchParams.set("limit", "50");
+      let messageId: string | null = null;
+      await expect.poll(async () => {
+        const response = await fetch(messagesUrl);
+        if (!response.ok) {
+          throw new Error(`Mailpit message-list request failed with HTTP ${response.status}.`);
+        }
+        const result = await response.json() as {
+          messages?: { ID?: string; To?: { Address?: string }[] }[];
+        };
+        messageId = result.messages?.find((candidate) =>
+          candidate.To?.some((recipient) =>
+            recipient.Address?.toLowerCase() === email.toLowerCase(),
+          ),
+        )?.ID ?? null;
+        return messageId;
+      }, { timeout: 15_000 }).not.toBeNull();
+
+      if (!messageId) {
+        throw new Error("Supabase did not deliver a confirmation message to the synthetic mailbox.");
+      }
+      const messageUrl = new URL(`/api/v1/message/${encodeURIComponent(messageId)}`, emailApiUrl);
+      const response = await fetch(messageUrl);
+      if (!response.ok) {
+        throw new Error(`Mailpit message request failed with HTTP ${response.status}.`);
+      }
+      const message = await response.json() as { Text?: string; HTML?: string };
+      const body = `${message.Text ?? ""}\n${message.HTML ?? ""}`;
+      const link = body.match(/https?:\/\/[^\s"'<>]+/)?.[0]?.replaceAll("&amp;", "&");
+      if (!link) {
+        throw new Error("Supabase confirmation email did not contain a usable link.");
+      }
+      return link;
+    }
 });

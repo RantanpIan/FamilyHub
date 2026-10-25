@@ -90,6 +90,45 @@ export const FamilyMemberSchema = z.object({
   has_login: z.boolean(),
 }).strict();
 
+export const FamilyMembershipStatusSchema = z.enum(["active", "pending", "revoked"]);
+export const FamilyInvitationStatusSchema = z.enum([
+  "pending",
+  "accepted",
+  "revoked",
+  "expired",
+]);
+
+export const FamilyMembershipSummarySchema = z.object({
+  membership_id: z.uuid(),
+  member_id: FamilyMemberIdSchema,
+  role: FamilyRoleSchema,
+  status: FamilyMembershipStatusSchema,
+}).strict();
+
+export const FamilyInvitationSchema = z.object({
+  invitation_id: z.uuid(),
+  target_member_id: FamilyMemberIdSchema,
+  target_member_name: z.string().min(1).max(80),
+  role: FamilyRoleSchema,
+  status: FamilyInvitationStatusSchema,
+  created_at: z.iso.datetime({ offset: true }),
+  expires_at: z.iso.datetime({ offset: true }),
+}).strict();
+
+export const CreateFamilyInvitationInputSchema = z.object({
+  targetMemberId: FamilyMemberIdSchema,
+  email: z.string().trim().toLowerCase().pipe(z.email()),
+}).strict();
+
+export const FamilyInvitationPreviewSchema = z.object({
+  family_id: FamilyIdSchema,
+  family_name: FamilyNameSchema,
+  target_member_id: FamilyMemberIdSchema,
+  target_member_name: z.string().min(1).max(80),
+  role: FamilyRoleSchema,
+  expires_at: z.iso.datetime({ offset: true }),
+}).strict();
+
 export type FamilyRole = z.infer<typeof FamilyRoleSchema>;
 export type FamilyMemberType = z.infer<typeof FamilyMemberTypeSchema>;
 export type CreateFamilyInput = z.infer<typeof CreateFamilyInputSchema>;
@@ -97,6 +136,10 @@ export type CreateManagedMemberInput = z.infer<typeof CreateManagedMemberInputSc
 export type UpdateManagedMemberInput = z.infer<typeof UpdateManagedMemberInputSchema>;
 export type FamilySummary = z.infer<typeof FamilySummarySchema>;
 export type FamilyMember = z.infer<typeof FamilyMemberSchema>;
+export type FamilyMembershipSummary = z.infer<typeof FamilyMembershipSummarySchema>;
+export type FamilyInvitation = z.infer<typeof FamilyInvitationSchema>;
+export type CreateFamilyInvitationInput = z.infer<typeof CreateFamilyInvitationInputSchema>;
+export type FamilyInvitationPreview = z.infer<typeof FamilyInvitationPreviewSchema>;
 
 export const ResourceIdSchema = z.uuid().brand<"ResourceId">();
 export const ResourceGrantIdSchema = z.uuid().brand<"ResourceGrantId">();

@@ -201,3 +201,41 @@ reine Beispiel-Policy und ersetzen den RLS-Nachweis nicht. Der technische
 Default `private` ist vorsorglich und ausdrücklich keine abschließende
 Produktentscheidung. Die vollständige Rollenmatrix, Vertretungsrechte für
 verwaltete Kinder und gemeinsam verantwortete Inhalte bleiben offen.
+
+## FH-CX-006 – Einladungen und Mitgliedschaftslebenszyklus
+
+Die Integrationstests stehen in
+`tests/integration/family-invitations.rls.test.ts` und laufen mit normalen,
+synthetischen Benutzer-Sitzungen gegen lokale PostgreSQL-RLS. Der zusätzliche
+Playwright-Fluss steht in `tests/e2e/family-management.spec.ts`. Der zuletzt
+ausgeführte lokale Lauf bestand aus 47 Integrationstests, 4 Playwright-Tests
+einschließlich E-Mail-Bestätigung über Mailpit, 39 Unit-Tests sowie Typecheck,
+Lint und Produktionsbuild.
+
+| Test-ID | Abdeckung | Testnachweis / Grenze |
+| --- | --- | --- |
+| INV-T01 | Implementiert; lokale RLS-Ausführung erforderlich | Admin erzeugt einen 256-Bit-Token; Datenbank speichert nur Hash, Laufzeit ist auf sieben Tage begrenzt. |
+| INV-T02 | Implementiert; lokale RLS-Ausführung erforderlich | Normales Mitglied darf keine Einladung erstellen. |
+| INV-T03 | Implementiert; lokale RLS-Ausführung erforderlich | Admin einer Familie kann keine Einladung für eine fremde Familie erstellen oder verwalten. |
+| INV-T04 | Implementiert; lokale RLS-Ausführung erforderlich | Widerruf verhindert Annahme. |
+| INV-T05 | Implementiert; lokale RLS-Ausführung erforderlich | Abgelaufene Einladung wird abgelehnt. |
+| INV-T06 | Geprüft | Lokaler Playwright- und RLS-Lauf bestätigt Annahme und Verknüpfung des vorbestehenden Erwachsenenprofils. |
+| INV-T07 | Geprüft | Playwright registriert ein neues synthetisches Konto, öffnet den Bestätigungslink aus der lokalen Mailpit-API und nimmt anschließend die Einladung an. |
+| INV-T08 | Implementiert; lokale RLS-Ausführung erforderlich | Abweichende bestätigte E-Mail wird bei Vorschau und Annahme abgelehnt. |
+| INV-T09 | Implementiert; lokale RLS-Ausführung erforderlich | Wiederholte Annahme desselben Tokens durch dasselbe Konto ist idempotent und erzeugt eine Mitgliedschaft. |
+| INV-T10 | Implementiert; lokale RLS-Ausführung erforderlich | Zwei gleichzeitige Annahmeversuche ergeben eine aktive Verknüpfung und erfolgreiche idempotente Ergebnisse. |
+| INV-T11 | Implementiert; lokale RLS-Ausführung erforderlich | Bereits mit einem anderen Konto verbundenes Familienmitglied wird nicht übernommen. |
+| INV-T12 | Implementiert; lokale RLS-Ausführung erforderlich | Adminliste enthält Mitgliedschaften nur für die eigene Familie; Nicht-Admin-Aufruf wird verweigert. |
+| INV-T13 | Implementiert; lokale RLS-Ausführung erforderlich | Direkte Rollenänderungen sind über Client-Tabellenrechte gesperrt; sichere Rollenänderungsregeln sind noch nicht freigegeben. |
+| INV-T14 | Teilweise geprüft | Selbstbeförderung ist durch fehlende direkte Schreibrechte verhindert; separate positive/negative Rollenänderungs-RPCs sind mangels beschlossener Rollenmatrix nicht implementiert. |
+| INV-T15 | Implementiert; lokale RLS-Ausführung erforderlich | Deaktivierte Mitgliedschaft verliert Ressourcenzugriff; Person und Ressource bleiben bestehen. |
+| INV-T16 | Implementiert; lokale RLS-Ausführung erforderlich | Letzter aktiver Administrator kann nicht deaktiviert werden. |
+| INV-T17 | Implementiert; lokale RLS-Ausführung erforderlich | Admin erhält durch Verwaltung keine Einsicht in die private Ressource des eingeladenen Mitglieds. |
+| INV-T18 | Teilweise geprüft | Bestehende Family-RLS-Fixtures prüfen Mehrfamilienmitgliedschaften; Einladung eines bereits anderswo aktiven Kontos ist noch kein separater Nachweis. |
+| INV-T19 | UI implementiert; E2E nicht ergänzt | Vorhandener Familienkontext kann ausgewählt werden; expliziter Invite-bezogener Wechseltest fehlt. |
+| INV-T20 | Implementiert; lokale RLS-Ausführung erforderlich | Fremde Familien-IDs und fremde Membership-Verwaltungsaufrufe werden serverseitig verweigert. |
+| INV-T21 | Teilweise geprüft | Deaktivierung ist familiengebunden; ein eigener Test, dass andere Memberships desselben Kontos unverändert bleiben, ist noch offen. |
+
+Nicht enthalten sind SMTP-Zustellung, Rollenwechsel, Kinderkonto-Aktivierung
+und Eltern-/Kindervertretung. Diese Grenzen sind beabsichtigt und in
+`FH-OPEN-001` dokumentiert; ein UI-Button wäre kein Berechtigungsnachweis.

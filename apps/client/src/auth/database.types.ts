@@ -123,6 +123,60 @@ export type Database = {
           },
         ];
       };
+      family_invitations: {
+        Row: {
+          id: string;
+          family_id: string;
+          target_member_id: string;
+          invited_email: string;
+          role: "adult";
+          token_hash: string;
+          status: "pending" | "accepted" | "revoked" | "expired";
+          invited_by: string;
+          created_at: string;
+          expires_at: string;
+          accepted_at: string | null;
+          accepted_by: string | null;
+          revoked_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          target_member_id: string;
+          invited_email: string;
+          role?: "adult";
+          token_hash: string;
+          status?: "pending" | "accepted" | "revoked" | "expired";
+          invited_by: string;
+          expires_at: string;
+          accepted_at?: string | null;
+          accepted_by?: string | null;
+          revoked_at?: string | null;
+        };
+        Update: {
+          status?: "pending" | "accepted" | "revoked" | "expired";
+          expires_at?: string;
+          accepted_at?: string | null;
+          accepted_by?: string | null;
+          revoked_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "family_invitations_member_family_fk";
+            columns: ["target_member_id", "family_id"];
+            isOneToOne: false;
+            referencedRelation: "family_members";
+            referencedColumns: ["id", "family_id"];
+          },
+          {
+            foreignKeyName: "family_invitations_family_id_fkey";
+            columns: ["family_id"];
+            isOneToOne: false;
+            referencedRelation: "families";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       resources: {
         Row: {
           id: string;
@@ -264,6 +318,64 @@ export type Database = {
           status: string;
           has_login: boolean;
         }[];
+      };
+      create_family_invitation: {
+        Args: {
+          p_family_id: string;
+          p_target_member_id: string;
+          p_invited_email: string;
+        };
+        Returns: {
+          invitation_id: string;
+          target_member_name: string;
+          role: string;
+          expires_at: string;
+          invitation_token: string;
+        }[];
+      };
+      list_family_memberships_admin: {
+        Args: { p_family_id: string };
+        Returns: {
+          membership_id: string;
+          member_id: string;
+          role: string;
+          status: string;
+        }[];
+      };
+      list_family_invitations_admin: {
+        Args: { p_family_id: string };
+        Returns: {
+          invitation_id: string;
+          target_member_id: string;
+          target_member_name: string;
+          role: string;
+          status: string;
+          created_at: string;
+          expires_at: string;
+        }[];
+      };
+      preview_family_invitation: {
+        Args: { p_token: string };
+        Returns: {
+          family_id: string;
+          family_name: string;
+          target_member_id: string;
+          target_member_name: string;
+          role: string;
+          expires_at: string;
+        }[];
+      };
+      accept_family_invitation: {
+        Args: { p_token: string };
+        Returns: { family_id: string }[];
+      };
+      revoke_family_invitation: {
+        Args: { p_invitation_id: string };
+        Returns: undefined;
+      };
+      deactivate_family_membership: {
+        Args: { p_membership_id: string };
+        Returns: undefined;
       };
       resource_actor_is_active_member: {
         Args: { p_family_id: string; p_member_id: string };

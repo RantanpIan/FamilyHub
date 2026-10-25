@@ -1,27 +1,36 @@
 import { useState, type FormEvent } from "react";
 import {
+  CreateFamilyInvitationInputSchema,
   CreateManagedMemberInputSchema,
   type FamilyMember,
 } from "@familyhub/contracts";
 import { EmptyState, ErrorState, LoadingState } from "@familyhub/ui";
 import { getErrorMessage } from "../auth/auth-utils";
 import { useFamily } from "./useFamily";
+import { createFamilyInvitationLink } from "./family-service";
 
 export function FamilyManagement() {
   const {
     selectedFamily,
     families,
     members,
+    memberships,
+    invitations,
     membersStatus,
     membersError,
     selectFamily,
     createManagedMember,
+    createInvitation,
+    revokeInvitation,
+    deactivateMembership,
     updateManagedMember,
     refreshMembers,
   } = useFamily();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [invitationLink, setInvitationLink] = useState<string | null>(null);
+  const [inviteCopied, setInviteCopied] = useState(false);
   const isAdmin = selectedFamily?.role === "family_admin";
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -46,6 +55,61 @@ export function FamilyManagement() {
       setNotice("Das Familienmitglied wurde hinzugefügt.");
     } catch (createError) {
       setError(getErrorMessage(createError));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function submitInvitation(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const parsed = CreateFamilyInvitationInputSchema.safeParse({
+      targetMemberId: form.get("targetMemberId"),
+      email: form.get("email"),
+    });
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? "Bitte prüfe die Einladungsdaten.");
+      return;
+    }
+
+    setPending(true);
+    setError(null);
+    setNotice(null);
+    setInvitationLink(null);
+    setInviteCopied(false);
+    try {
+      const token = await createInvitation(parsed.data);
+      setInvitationLink(createFamilyInvitationLink(token));
+      setNotice("Die Einladung wurde erstellt. Kopiere den Link jetzt; er wird nicht erneut angezeigt.");
+      formElement.reset();
+    } catch (createError) {
+      setError(getErrorMessage(createError));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function copyInvitationLink() {
+    if (!invitationLink) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(invitationLink);
+      setInvitationLink(null);
+      setInviteCopied(true);
+    } catch (copyError) {
+      setError(getErrorMessage(copyError));
+    }
+  }
+
+  async function runManagementAction(action: () => Promise<void>) {
+    setPending(true);
+    setError(null);
+    try {
+      await action();
+    } catch (actionError) {
+      setError(getErrorMessage(actionError));
     } finally {
       setPending(false);
     }
@@ -83,6 +147,9 @@ export function FamilyManagement() {
         Deine Rolle in dieser Familie: {isAdmin ? "Administrator" : selectedFamily.role}.
         Rollen gelten nur für diesen Familienbereich.
       </p>
+      {error && <ErrorState description={error} />}
+      {notice && <p className="auth-notice" role="status">{notice}</p>}
+      {inviteCopied && <p className="auth-notice" role="status">Einladungslink kopiert.</p>}
 
       {membersStatus === "loading" ? (
         <LoadingState label="Familienmitglieder werden geladen" />
@@ -103,16 +170,52 @@ export function FamilyManagement() {
         />
       ) : (
         <ul className="family-member-list" aria-label="Familienmitglieder">
-          {members.map((member) => (
+          {members.map((member) => {
+            const membership = memberships.find(
+              (item) => item.member_id === member.member_id,
+            );
+            const hasPendingInvitation = invitations.some(
+              (item) =>
+                item.target_member_id === member.member_id &&
+                item.status === "pending",
+            );
+            const activeAdmins = memberships.filter(
+              (item) => item.role === "family_admin" && item.status === "active",
+            ).length;
+            const canDeactivate =
+              isAdmin &&
+              membership?.status === "active" &&
+              !(membership.role === "family_admin" && activeAdmins <= 1);
+            return (
             <ManagedMemberRow
               key={member.member_id}
               member={member}
               canEdit={isAdmin}
+              membership={membership}
+              canInvite={
+                isAdmin &&
+                member.member_type === "adult" &&
+                member.status === "active" &&
+                !member.has_login &&
+                !hasPendingInvitation
+              }
+              canDeactivate={canDeactivate}
               onSave={(displayName) =>
                 updateManagedMember(member.member_id, { displayName })
               }
+              onDeactivate={() =>
+                runManagementAction(async () => {
+                  if (
+                    membership &&
+                    window.confirm(`Mitgliedschaft von ${member.display_name} deaktivieren?`)
+                  ) {
+                    await deactivateMembership(membership.membership_id);
+                  }
+                })
+              }
             />
-          ))}
+            );
+          })}
         </ul>
       )}
 
@@ -120,8 +223,6 @@ export function FamilyManagement() {
         <section className="managed-member-form" aria-labelledby="add-member-title">
           <h3 id="add-member-title">Familienmitglied hinzufügen</h3>
           <p>Das Profil erhält kein eigenes Anmeldekonto.</p>
-          {error && <ErrorState description={error} />}
-          {notice && <p className="auth-notice" role="status">{notice}</p>}
           <form className="auth-form" onSubmit={(event) => void submit(event)}>
             <label>
               Name des Familienmitglieds
@@ -148,6 +249,89 @@ export function FamilyManagement() {
           </form>
         </section>
       )}
+
+      {isAdmin && (
+        <section className="managed-member-form" aria-labelledby="invite-member-title">
+          <h3 id="invite-member-title">Erwachsenes Familienmitglied einladen</h3>
+          <p>
+            Einladungen verknüpfen ein vorhandenes Erwachsenenprofil. Rollenänderungen
+            bleiben bis zur Klärung der Rollenmatrix gesperrt.
+          </p>
+          {invitationLink ? (
+            <button className="primary-button" type="button" onClick={() => void copyInvitationLink()}>
+              Einladungslink kopieren
+            </button>
+          ) : (
+            <form className="auth-form" onSubmit={(event) => void submitInvitation(event)}>
+              <label>
+                Vorhandenes Erwachsenenprofil
+                <select name="targetMemberId" defaultValue="" required>
+                  <option value="" disabled>Profil auswählen</option>
+                  {members
+                    .filter((member) =>
+                      member.member_type === "adult" &&
+                      member.status === "active" &&
+                      !member.has_login &&
+                      !invitations.some(
+                        (invite) =>
+                          invite.target_member_id === member.member_id &&
+                          invite.status === "pending",
+                      ),
+                    )
+                    .map((member) => (
+                      <option key={member.member_id} value={member.member_id}>
+                        {member.display_name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <label>
+                E-Mail-Adresse
+                <input name="email" type="email" autoComplete="email" maxLength={254} required />
+              </label>
+              <button className="primary-button" type="submit" disabled={pending}>
+                {pending ? "Einladung wird erstellt …" : "Einladung erstellen"}
+              </button>
+            </form>
+          )}
+          {invitations.length > 0 && (
+            <ul className="family-member-list" aria-label="Einladungen">
+              {invitations.map((invitation) => (
+                <li className="family-member-card" key={invitation.invitation_id}>
+                  <div className="family-member-summary">
+                    <div>
+                      <strong>{invitation.target_member_name}</strong>
+                      <span>
+                        {invitation.status === "pending"
+                          ? `Offen · gültig bis ${new Date(invitation.expires_at).toLocaleDateString()}`
+                          : invitation.status === "accepted"
+                            ? "Angenommen"
+                            : invitation.status === "revoked"
+                              ? "Widerrufen"
+                              : "Abgelaufen"}
+                      </span>
+                    </div>
+                    {invitation.status === "pending" && (
+                      <button
+                        className="text-button"
+                        type="button"
+                        disabled={pending}
+                        onClick={() =>
+                          void runManagementAction(() =>
+                            revokeInvitation(invitation.invitation_id),
+                          )
+                        }
+                      >
+                        Widerrufen
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
     </section>
   );
 }
@@ -155,11 +339,19 @@ export function FamilyManagement() {
 function ManagedMemberRow({
   member,
   canEdit,
+  membership,
+  canInvite,
+  canDeactivate,
   onSave,
+  onDeactivate,
 }: {
   member: FamilyMember;
   canEdit: boolean;
+  membership: { membership_id: string; role: string; status: string } | undefined;
+  canInvite: boolean;
+  canDeactivate: boolean;
   onSave: (displayName: string) => Promise<void>;
+  onDeactivate: () => Promise<void>;
 }) {
   const [displayName, setDisplayName] = useState(member.display_name);
   const [pending, setPending] = useState(false);
@@ -192,9 +384,33 @@ function ManagedMemberRow({
           <span>{member.member_type === "child" ? "Kinderprofil" : "Erwachsenenprofil"}</span>
         </div>
         <span className="member-account-status">
-          {member.has_login ? "Konto verbunden" : "Verwaltetes Profil · kein Login"}
+          {membership?.status === "active"
+            ? `Konto verbunden · ${membership.role}`
+            : membership?.status === "revoked"
+              ? "Mitgliedschaft deaktiviert"
+              : member.has_login
+                ? "Konto verbunden"
+                : "Verwaltetes Profil · kein Login"}
         </span>
       </div>
+      {canInvite && (
+        <p className="member-save-notice">Dieses Erwachsenenprofil kann eingeladen werden.</p>
+      )}
+      {canDeactivate && (
+        <button
+          className="text-button"
+          type="button"
+          disabled={pending}
+          onClick={() => void onDeactivate()}
+        >
+          Mitgliedschaft deaktivieren
+        </button>
+      )}
+      {membership?.role === "family_admin" && membership.status === "active" && (
+        <p className="member-save-notice">
+          Die letzte aktive Administration kann nicht deaktiviert werden.
+        </p>
+      )}
       {canEdit && (
         <form className="member-edit-form" onSubmit={(event) => void submit(event)}>
           <label>

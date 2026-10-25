@@ -104,6 +104,27 @@ Mitgliederansicht und dem atomaren Familien-Bootstrap; sie setzen einen festen
 `authenticated` ausführbar. Der ausgewählte Familienkontext in der UI ist
 kein Berechtigungsnachweis; jede Operation wird serverseitig erneut geprüft.
 
+Die additive Migration
+`supabase/migrations/20261023170000_add_family_invitations_and_membership_management.sql`
+ergänzt Familieneinladungen. Ein Administrator kann nur ein unverbundenes,
+aktives Erwachsenenprofil derselben Familie einladen. PostgreSQL erzeugt einen
+256-Bit-Code und speichert nur dessen SHA-256-Hash; Einladungen laufen nach
+sieben Tagen ab. Nur ein angemeldetes Konto mit bestätigter,
+übereinstimmender E-Mail-Adresse kann die Einladung ansehen und ausdrücklich
+annehmen. Die Annahme sperrt Einladung und Zielmitglied und erzeugt oder
+reaktiviert die Mitgliedschaft atomar. Eine frühere Verknüpfung zu einem
+anderen Konto verhindert eine Übernahme. Deaktivierung widerruft nur den
+Membership-Status; die letzte aktive Administrator-Mitgliedschaft kann nicht
+deaktiviert werden. Die Einladungstabelle hat keine direkten Clientrechte;
+Admin-RPCs geben keine E-Mail-Adressen oder Tokens aus.
+
+Der manuell kopierbare Link transportiert den Code im URL-Fragment, entfernt
+ihn nach der Übernahme in `sessionStorage` wieder aus der sichtbaren
+Adresszeile und erfordert keine E-Mail-/SMTP-Integration. Rollenänderungen,
+Kinder-Login und Eltern-/Kindervertretung sind bis zur Klärung von
+`FH-OPEN-001` gesperrt. Mitgliedschaftsrollen geben keinen zusätzlichen
+Zugriff auf private Ressourcen.
+
 Die Migration
 `supabase/migrations/20261023094000_create_resource_access_model.sql` ergänzt
 `resources` und `resource_grants`. Zusammengesetzte Fremdschlüssel sichern die
@@ -117,6 +138,6 @@ Ressourcenversion.
 
 `.env.example` enthält nur leere Browser- und Testplatzhalter. Browsercode
 verwendet ausschließlich den öffentlichen Anon-/Publishable-Key; Service-Role-
-Keys bleiben auf lokale Testprozesse beschränkt. Einladungen,
-Kontoverknüpfungen, Rollenänderungen und fachliche Ressourcenoperationen sind
-nicht implementiert.
+Keys bleiben auf lokale Testprozesse beschränkt. Rollenänderungen,
+Kinderkonto-Aktivierung und fachliche Ressourceninhalte sind nicht
+implementiert.
