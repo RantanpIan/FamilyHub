@@ -34,9 +34,11 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - uses: supabase/setup-cli@v1
+      - id: setup-supabase-cli
+        uses: supabase/setup-cli@v3
         with:
-          version: latest
+          version: 2.121.0
+      - run: supabase --version
       - run: supabase start
       - name: Configure disposable Supabase browser test values
         shell: bash
@@ -61,7 +63,7 @@ jobs:
             test-results/
           retention-days: 7
       - name: Stop local Supabase
-        if: always()
+        if: always() && steps.setup-supabase-cli.outcome == 'success'
         run: supabase stop
 
   auth-rls:
@@ -75,9 +77,11 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - uses: supabase/setup-cli@v1
+      - id: setup-supabase-cli
+        uses: supabase/setup-cli@v3
         with:
-          version: latest
+          version: 2.121.0
+      - run: supabase --version
       - run: supabase start
       - name: Reset disposable database and apply all migrations
         run: supabase db reset --local
@@ -145,5 +149,5 @@ jobs:
           NODE
       - run: npm run test:integration
       - name: Stop local Supabase
-        if: always()
+        if: always() && steps.setup-supabase-cli.outcome == 'success'
         run: supabase stop
