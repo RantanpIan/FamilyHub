@@ -222,8 +222,17 @@ describe("FH-CX-008 calendar event schema and RLS", () => {
   });
 
   it("CAL-DB-T06: resource foreign key prevents wrong family or wrong resource type", async () => {
+    // Use a valid calendar resource without an existing event payload.
+    // Reusing privateId here would hit the calendar_events primary key (23505)
+    // before PostgreSQL can evaluate the cross-family foreign key (23503).
+    const unusedCalendarResource = await createResource(
+      owner,
+      familyId,
+      ownerMemberId,
+      "calendar_event",
+    );
     const wrongFamily = await service.from("calendar_events")
-      .insert({ ...timed(randomUUID(), otherFamilyId), resource_id: privateId });
+      .insert(timed(unusedCalendarResource, otherFamilyId));
     expect(wrongFamily.error?.code).toBe("23503");
     const school = await createResource(owner, familyId, ownerMemberId, "school_item");
     const wrongType = await service.from("calendar_events")
