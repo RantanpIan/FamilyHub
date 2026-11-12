@@ -181,6 +181,7 @@ export type Database = {
         Row: {
           resource_id: string;
           family_id: string;
+          subject_member_id: string | null;
           resource_type: "calendar_event";
           title: string;
           is_all_day: boolean;
@@ -195,6 +196,7 @@ export type Database = {
         Insert: {
           resource_id: string;
           family_id: string;
+          subject_member_id?: string | null;
           resource_type?: "calendar_event";
           title: string;
           is_all_day?: boolean;
@@ -205,6 +207,7 @@ export type Database = {
           time_zone: string;
         };
         Update: {
+          subject_member_id?: string | null;
           title?: string;
           is_all_day?: boolean;
           starts_at?: string | null;
@@ -215,6 +218,13 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "calendar_events_subject_family_fk";
+            columns: ["subject_member_id", "family_id"];
+            isOneToOne: false;
+            referencedRelation: "family_members";
+            referencedColumns: ["id", "family_id"];
+          },
           {
             foreignKeyName: "calendar_events_resource_type_family_fk";
             columns: ["resource_id", "family_id", "resource_type"];
@@ -337,6 +347,22 @@ export type Database = {
     };
     Views: { [_ in never]: never };
     Functions: {
+      create_calendar_event_for_member: {
+        Args: {
+          p_family_id: string;
+          p_title: string;
+          p_is_all_day: boolean;
+          p_starts_at: string | null;
+          p_ends_at: string | null;
+          p_start_date: string | null;
+          p_end_date_exclusive: string | null;
+          p_time_zone: string;
+          p_visibility: "private" | "family";
+          p_request_id: string;
+          p_subject_member_id: string;
+        };
+        Returns: string;
+      };
       create_calendar_event: {
         Args: {
           p_family_id: string;

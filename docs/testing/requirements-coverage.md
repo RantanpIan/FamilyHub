@@ -282,3 +282,21 @@ Kalender-CRUD bereits auf der Cloud-Instanz verfügbar ist.
 **Manuell nach Cloud-Migration zu prüfen:** Anmeldung zweier Personen,
 Anlage eines privaten und eines gemeinsamen Termins, getrennte Familien,
 Wechsel zwischen Familien, Mobilansicht, Bearbeitung, Konflikte und Löschung.
+
+
+## FH-CAL-001 – Monatsansicht, Terminperson und gemeinsame Familie
+
+**Status:** Implementierungsentwurf, CI und manuelle Mehrkontenabnahme offen.
+
+| Test | Erwartung |
+| --- | --- |
+| CAL-SUB-T01 | Eigentümer legt privaten Termin fuer anderes Mitglied an; Zielkonto liest, darf weder ändern noch löschen; fremde Familie sieht nichts |
+| CAL-SUB-T02 | Zielperson aus anderer Familie und nicht zugehöriges erstellendes Konto werden abgelehnt |
+| CAL-SUB-T03 | Wiederholung derselben Request-ID ist idempotent; geänderte Zielperson unter gleicher ID wird abgelehnt |
+| CAL-SUB-T04 | Altes Create-RPC bleibt funktionsfähig, NULL bedeutet bisheriger Owner |
+| Unit monthCells | Sechs Wochen/42 Tage, Montag als erster Wochentag, einschließlich Nachbarmonaten |
+| Unit adjustEndAfterStart | Beginnänderung verschiebt Endzeit standardmäßig auf +60 Minuten; explizite gültige spätere Endzeit bleibt |
+| Unit eventOnDay | Ganztag mit exklusivem Enddatum; Nachttermine nicht fälschlich auf Ende-Mitternacht projizieren |
+| Browser E2E | Mobile Monatsansicht, 42 Tage, Monatsnavigation, Terminanlage/-bearbeitung/-löschung, Terminperson und automatische Endzeit |
+
+**Realer Befund (12.11.2026):** In `Familyhub_dev` gab es zwei aktive Familien mit jeweils genau einem aktiven Kontobenutzer. Ein in Familie A freigegebener Termin darf bei einem Konto, das nur Familie B angehört, nicht erscheinen. Die Zuordnung der echten Konten erfolgt über die bestehende Einladung; personenbezogene SQL-Testdaten werden nicht erzeugt.

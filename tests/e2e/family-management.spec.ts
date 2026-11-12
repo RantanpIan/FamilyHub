@@ -115,7 +115,7 @@ test.describe("family onboarding with a disposable Supabase backend", () => {
     });
   });
 
-  test("FH-CX-009: a signed-in family owner creates, edits and deletes an all-day event on mobile", async ({ page }) => {
+  test("FH-CX-009: mobile owner can create, edit and delete an all-day calendar event", async ({ page }) => {
     await withConfirmedUser(async (user) => {
       await page.setViewportSize({ width: 390, height: 844 });
       await page.goto("/auth");
@@ -130,12 +130,20 @@ test.describe("family onboarding with a disposable Supabase backend", () => {
 
       await page.getByRole("navigation", { name: "Mobile Hauptnavigation" })
         .getByRole("button", { name: "Kalender" }).click();
-      await expect(page.getByRole("heading", { name: "Termine · Synthetic calendar E2E family" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Synthetic calendar E2E family" })).toBeVisible();
+      await expect(page.locator(".calendar-day")).toHaveCount(42);
+      const day = await page.evaluate(() => {
+        const date = new Date();
+        return [
+          date.getFullYear(),
+          String(date.getMonth() + 1).padStart(2, "0"),
+          String(date.getDate()).padStart(2, "0"),
+        ].join("-");
+      });
       await page.getByRole("button", { name: "+ Termin" }).click();
-
       await page.getByLabel("Titel").fill("Synthetic calendar E2E event");
       await page.getByRole("checkbox", { name: "Ganztägiger Termin" }).check();
-      await page.getByLabel("Datum").fill("2026-11-21");
+      await page.getByLabel("Datum").fill(day);
       await page.getByRole("button", { name: "Termin erstellen" }).click();
 
       await expect(page.getByRole("heading", { name: "Synthetic calendar E2E event" })).toBeVisible();
@@ -146,7 +154,59 @@ test.describe("family onboarding with a disposable Supabase backend", () => {
 
       page.once("dialog", (dialog) => void dialog.accept());
       await page.getByRole("button", { name: "Löschen" }).click();
-      await expect(page.getByRole("heading", { name: "Noch keine Termine" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Keine Termine an diesem Tag" })).toBeVisible();
+    });
+  });
+
+  test("FH-CAL-UI-T01: full month view, start/end auto adjustment and target member", async ({ page }) => {
+    await withConfirmedUser(async (user) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto("/auth");
+      await page.getByLabel("E-Mail-Adresse").fill(user.email);
+      await page.getByLabel("Passwort", { exact: true }).fill(user.password);
+      await page.getByRole("button", { name: "Anmelden" }).click();
+      await page.getByLabel("Familienname").fill("Synthetic month-grid family");
+      await page.getByRole("button", { name: "Familie erstellen" }).click();
+      await expect(page.getByTestId("app-shell")).toBeVisible();
+
+      await page.getByRole("navigation", { name: "Mobile Hauptnavigation" })
+        .getByRole("button", { name: "Mehr" }).click();
+      await page.getByLabel("Name des Familienmitglieds").fill("Synthetic dental patient");
+      await page.getByLabel("Profiltyp").selectOption("child");
+      await page.getByRole("button", { name: "Mitglied hinzufügen" }).click();
+      await expect(page.getByText("Synthetic dental patient").first()).toBeVisible();
+
+      await page.getByRole("navigation", { name: "Mobile Hauptnavigation" })
+        .getByRole("button", { name: "Kalender" }).click();
+      await expect(page.locator(".calendar-day")).toHaveCount(42);
+      const firstDay = await page.locator(".calendar-day").first().getAttribute("data-testid");
+      expect(firstDay?.startsWith("calendar-day-")).toBe(true);
+      await page.getByRole("button", { name: "Nächster Monat" }).click();
+      await expect(page.locator(".calendar-day")).toHaveCount(42);
+      await page.getByRole("button", { name: "Vorheriger Monat" }).click();
+      await page.locator(".calendar-month-toolbar").getByRole("button", { name: "Heute" }).click();
+
+      await page.getByRole("button", { name: "+ Termin" }).click();
+      await page.getByLabel("Termin für").selectOption({ label: "Synthetic dental patient" });
+      await page.getByLabel("Titel").fill("Synthetic Zahnarzt");
+      const day = await page.evaluate(() => {
+        const date = new Date();
+        return [
+          date.getFullYear(),
+          String(date.getMonth() + 1).padStart(2, "0"),
+          String(date.getDate()).padStart(2, "0"),
+        ].join("-");
+      });
+      await page.getByLabel("Beginn").fill(day + "T14:30");
+      await expect(page.locator('input[name="endsAt"]')).toHaveValue(day + "T15:30");
+      await page.getByLabel("Beginn").fill(day + "T16:00");
+      await expect(page.locator('input[name="endsAt"]')).toHaveValue(day + "T17:00");
+      await page.getByRole("button", { name: "Termin erstellen" }).click();
+      await expect(page.getByRole("heading", { name: "Synthetic Zahnarzt" })).toBeVisible();
+      await expect(page.getByText("Termin für Synthetic dental patient")).toBeVisible();
+
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
+      expect(overflow).toBe(false);
     });
   });
 

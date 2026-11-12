@@ -67,12 +67,14 @@ export async function createCalendarEvent(
   input: CalendarEventInput,
   visibility: "private" | "family",
   requestId: string,
+  subjectMemberId: string,
 ): Promise<string> {
-  const { data, error } = await requireClient().rpc("create_calendar_event", {
+  const { data, error } = await requireClient().rpc("create_calendar_event_for_member", {
     p_family_id: familyId,
     ...payload(input),
     p_visibility: visibility,
     p_request_id: requestId,
+    p_subject_member_id: subjectMemberId,
   });
   if (error) throw error;
   if (!data) throw new Error("Der Termin konnte nicht bestätigt werden.");
