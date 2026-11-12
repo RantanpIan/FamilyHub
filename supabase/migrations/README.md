@@ -111,3 +111,27 @@ constraints, all-day dates, mismatched resource linkage, and access revocation.
 Tests use only disposable local Supabase data. Do not apply this migration
 to the linked cloud project before successful CI, migration review and
 explicit approval.
+
+
+`20261112193000_add_calendar_event_commands.sql` adds a narrow authenticated
+RPC boundary for single events: `create_calendar_event`,
+`update_calendar_event`, and `delete_calendar_event`. The create RPC derives
+the owner member from an active auth membership in the requested family,
+atomically creates a `resources` row and the matching `calendar_events`
+payload, and uses a private request ledger to make retries with the same
+user/request ID idempotent. Reusing a request ID with changed payload fails
+closed. Returned IDs are scoped to the requester; a deleted request cannot
+recreate its previous event.
+
+Updates/deletions require current resource ownership and match the caller's
+`expectedVersion`, preventing silent concurrent overwrites. The payload
+table continues to deny direct browser writes; users may only call the narrow
+SECURITY DEFINER operations. Inputs are validated in PostgreSQL, including
+IANA time zone names through `pg_timezone_names`. Permission tests cover
+private/family visibility, cross-family reads and writes, idempotency and
+stale-version denial.
+
+**Deployment order:** apply the FH-CX-008 table migration first, then this
+new RPC migration in a reviewed development-cloud rollout. GitHub pull
+requests and CI do not migrate the connected cloud automatically. Run no
+cloud `db reset`, and do not upload real family data into disposable CI.
