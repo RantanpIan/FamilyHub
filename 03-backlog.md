@@ -152,4 +152,34 @@ Diese nachträgliche Notiz ersetzt nicht das ursprüngliche Auftragspaket. Früh
 - **FH-CX-005:** Laut bisherigem Projektverlauf abgenommen; Freigaben für private und familienbezogene Ressourcen bleiben die Grundlage.
 - **FH-CX-006:** Anwender hat den Praxistest als abgenommen bestätigt. Die sechs lokalen und sechs Remote-Migrationen im Supabase-Projekt `Familyhub_dev` wurden mit der CLI abgeglichen. Die aktuelle GitHub-Actions-Freigabe ist hier nicht unabhängig nachgewiesen.
 - **FH-CX-007 – in Umsetzung:** Vorhandene React-AppShell verbessern, nicht ersetzen. Responsive Kopfzeile mit Familienauswahl auch auf Smartphones, zugängliche Navigationsflächen, Desktop/Tablet-Skalierung, Familienkontext und Playwright-Regressionstests. Keine neuen Datenbankmigrationen. Umsetzung zunächst auf eigenem Entwicklungsbranch; CI- und Abnahmestatus offen.
-- **Nachfolgende neue Anforderung – Lernplan (vorgeschlagen, nicht Bestandteil FH-CX-007):** Ein Lernplan pro Kind und zugeordnetem Stundenplan soll die Vorbereitung für den nächsten Schultag anzeigen. Bei einer Schulaufgabe soll ab 14 Tagen vor dem Termin ein zusätzlicher Lern-Zeitslot sichtbar bzw. planbar sein. Die fachliche Quelle für Schulaufgaben, die Zeitslot-Regeln, Ferientage und Änderungen des Stundenplans müssen vor einem eigenen Entwicklungsauftrag geklärt werden. Kein eigenständiges neues Datenmodell ohne Abstimmung mit Kalender- und Schulmodul; kind- und familienbezogene Sichtbarkeit durch RLS schützen.
+- **Nachfolgende neue Anforderung – Lernplan (fachlich gewünscht, nicht Bestandteil FH-CX-007):** Siehe Abschnitt 9. Umsetzungsplanung zusammen mit Kalender und Stundenplan; nicht als bloße UI-Funktion vorziehen.
+
+
+## 9. Lernplan auf Basis des Stundenplans – fachliche Ergänzung (12.11.2026)
+
+**Status:** Fachliche Anforderungen vom Anwender benannt; Integration in Kalender/Stundenplan gewünscht. Implementierung offen; Umsetzung ausdrücklich **nicht** in FH-CX-007. Diese Ergänzung ist noch kein freigegebener neuer `FH-CX-...`-Auftrag.
+
+**Beschriebene Anforderungen:**
+1. **Je Kind und zugeordnetem Stundenplan ein eigener Lernplan.** Bei mehreren Stundenplänen dürfen Inhalte nicht vermischt werden.
+2. **Vorbereitung auf den nächsten Schultag:** Der Lernplan zeigt für die Fächer des nächsten Unterrichtstags an, was vorbereitet bzw. gelernt werden soll. Die genaue Quelle der Vorbereitungsschritte ist noch zu spezifizieren; ein Stundenplan allein enthält normalerweise keine Hausaufgaben.
+3. **Schulaufgaben:** Für eine anstehende Schulaufgabe ist bereits **14 Tage vorher** ein zusätzlicher Lern-Zeitslot im Kalender/Lernplan vorgesehen. Terminänderungen, Absagen und Ausnahmen dürfen nicht zu doppelten Zeitslots führen.
+4. **Tägliches Abhaken:** Die vorbereiteten Fächer/Aktivitäten eines Lernplans sind einzeln abschließbar. Ein vollständiger Lerntag zählt nur, wenn alle für den relevanten Tag verpflichtenden Einträge erledigt sind.
+5. **Lernserie (Streak-Counter):** Je Lernplan wird angezeigt, an wie vielen aufeinanderfolgenden Tagen die vollständige Vorbereitung erledigt wurde. Der Counter muss bei Änderungen an Stundenplan und Erledigungszustand konsistent und deterministisch berechnet werden.
+6. **Sticker-Belohnungssystem:** Beim Erreichen festzulegender Lernziele können Kinder digitale Sticker verdienen und in einer Sammlung sehen. Belohnungen dürfen nicht fälschbar oder durch parallele Wiederholungen doppelt gutgeschrieben werden.
+
+**Abhängigkeiten und konsistente Architektur:**
+- Kalender ist führendes Terminsystem. Schulaufgaben sind reale Kalendertermine; Lern-Zeitslots müssen sich auf diese und auf das betroffene Kind beziehen, ohne konkurrierende Termin-Wahrheitsquellen aufzubauen.
+- Schule/Stundenplan liefert Unterrichtsstruktur (Gültigkeit, Wochentage, Ausfälle/Ausnahmen). Lernpläne dürfen keine zweiten Stundenpläne als Schattenkopie speichern.
+- Änderungen/Löschungen an Stundenplan und Schulaufgaben müssen geplante Lerneinheiten und Counter sicher aktualisieren.
+- Pro Kind/Plan klare Eigentümerschaft, Rollen, private Sichtbarkeit und RLS; keine Daten anderer Kinder oder Familien in Statistiken, Stickern, Push oder Exports offenlegen.
+- Sticker und Lernserie sind motivierendes Feedback, keine Pflicht zur Nutzung und kein Ranking zwischen Kindern.
+
+**Noch offen – im fachlichen Auftrag klären:**
+- Was genau als Vorbereitung gilt: manuell gepflegte Aufgaben/Materialien oder vorgeschlagene Schritte aus dem Stundenplan?
+- Bezieht sich „Tage in Folge“ auf **Kalendertage** oder **relevante Schultage**? Vorschlag: nur geplante Schultage werten, Ferien/Wochenenden neutral behandeln.
+- Bedeutet „14 Tage vorher ein Extra-Zeitslot“ genau **einen** Slot am Tag -14 oder **mehrere** Lerneinheiten im 14-Tage-Vorbereitungsfenster? Ohne Entscheidung keine automatische Serie erzeugen.
+- Dauer, Uhrzeit, Konfliktlösung und Editierbarkeit des Lern-Zeitslots; Umgang mit mehreren Schulaufgaben.
+- Sticker-Regeln (Schwellen, Motive, Wiederholbarkeit, Zurücksetzen/Korrekturen) und Umgang mit verpassten Tagen.
+- Wer darf Vorbereitungen, Erledigungen und Schulaufgaben für welches Kind anlegen/ändern/einsehen? Offene Rollen-/Kindervertretungsmatrix beachten.
+
+**Umsetzungsempfehlung:** Anforderungen bei den Kalender-Stories FH-CX-008–016 und Schul-/Stundenplan-Stories FH-CX-022–026 als abhängigen fachlichen Erweiterungsbedarf einplanen, bevor ein eigener kleiner, getesteter Lernplan-Auftrag mit Akzeptanzkriterien, Datenmodell, RLS-, Idempotenz- und E2E-Tests freigegeben wird. FH-CX-007 bleibt auf Navigation und AppShell begrenzt.
