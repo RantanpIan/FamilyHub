@@ -184,6 +184,7 @@ test.describe("family onboarding with a disposable Supabase backend", () => {
       await page.getByRole("button", { name: "Nächster Monat" }).click();
       await expect(page.locator(".calendar-day")).toHaveCount(42);
       await page.getByRole("button", { name: "Vorheriger Monat" }).click();
+      await page.getByRole("button", { name: "Heute" }).click();
 
       await page.getByRole("button", { name: "+ Termin" }).click();
       await page.getByLabel("Termin für").selectOption({ label: "Synthetic dental patient" });
