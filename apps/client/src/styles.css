@@ -1217,3 +1217,127 @@ a:focus-visible {
     font-size: 10px;
   }
 }
+
+
+/* FH-CX-009: erste Kalenderansicht, mobile Touch-Bedienung */
+.calendar-page .section-heading {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.calendar-editor {
+  width: min(100%, 700px);
+  padding: clamp(18px, 4vw, 28px);
+  margin: 20px 0;
+  border: 1px solid #dce8e0;
+  border-radius: 17px;
+  background: #fff;
+}
+
+.calendar-editor h3 {
+  margin: 0 0 18px;
+  color: #314b42;
+  font-size: 18px;
+}
+
+.calendar-editor .auth-form input,
+.calendar-editor .auth-form select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  font-size: 15px;
+}
+
+.calendar-editor .calendar-all-day {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.calendar-editor .calendar-all-day input {
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+  accent-color: #2d7462;
+}
+
+.calendar-time-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.calendar-hint {
+  margin: 0;
+  color: #71877a;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.calendar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+
+.calendar-actions .text-button {
+  min-height: 44px;
+  padding: 6px 8px;
+}
+
+.calendar-event-list {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.calendar-event-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 22px;
+  background: #fff;
+  border: 1px solid #e4ebe6;
+  border-radius: 14px;
+}
+
+.calendar-event-content {
+  min-width: 0;
+}
+
+.calendar-event-content h3 {
+  margin: 8px 0;
+  color: #314b42;
+  overflow-wrap: anywhere;
+  font-size: 16px;
+}
+
+.calendar-event-content p {
+  margin: 0;
+  color: #6f8277;
+  line-height: 1.55;
+  font-size: 13px;
+}
+
+.calendar-event-meta {
+  font-size: 11px;
+  color: #598371;
+  font-weight: 650;
+}
+
+@media (max-width: 680px) {
+  .calendar-event-card {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 16px;
+  }
+
+  .calendar-time-fields {
+    grid-template-columns: 1fr;
+  }
+}
