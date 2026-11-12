@@ -115,6 +115,8 @@ describe("FH-CX-008 calendar event schema and RLS", () => {
   let familyId: string;
   let otherFamilyId: string;
   let ownerMemberId: string;
+  let readerMemberId: string;
+  let otherMemberId: string;
   let privateId: string;
   let sharedId: string;
 
@@ -127,7 +129,8 @@ describe("FH-CX-008 calendar event schema and RLS", () => {
     familyId = home.family_id;
     otherFamilyId = away.family_id;
     ownerMemberId = home.member_id;
-    await addAdult(familyId, reader);
+    otherMemberId = away.member_id;
+    readerMemberId = await addAdult(familyId, reader);
     privateId = await createResource(owner, familyId, ownerMemberId, "calendar_event");
     sharedId = await createResource(owner, familyId, ownerMemberId, "calendar_event", "family");
     const privateEvent = await service.from("calendar_events")
@@ -418,5 +421,74 @@ describe("FH-CX-008 calendar event schema and RLS", () => {
     expect(payload.data).toEqual([]);
     expect(resource.data).toEqual([]);
   });
+
+  it("CAL-SUB-T01: owner creates private appointment for another member, target gets read but not write", async () => {
+    const args = {
+      ...createArgs(randomUUID()),
+      p_subject_member_id: readerMemberId,
+    };
+    const created = await owner.client.rpc("create_calendar_event_for_member", args);
+    expect(created.error).toBeNull();
+    expect(created.data).toBeTruthy();
+    const event = await reader.client.from("calendar_events")
+      .select("title, subject_member_id").eq("resource_id", created.data!).single();
+    expect(event.error).toBeNull();
+    expect(event.data?.subject_member_id).toBe(readerMemberId);
+    const resource = await owner.client.from("resources")
+      .select("owner_member_id, visibility").eq("id", created.data!).single();
+    expect(resource.data).toMatchObject({
+      owner_member_id: ownerMemberId,
+      visibility: "private",
+    });
+    const otherFamily = await outsider.client.from("calendar_events")
+      .select("resource_id").eq("resource_id", created.data!);
+    expect(otherFamily.data).toEqual([]);
+    const unauthorized = await reader.client.rpc("delete_calendar_event", {
+      p_resource_id: created.data!,
+      p_expected_version: 1,
+    });
+    expect(unauthorized.error?.code).toBe("P0001");
+  });
+
+  it("CAL-SUB-T02: assigning a member from another family is rejected", async () => {
+    const invalid = await owner.client.rpc("create_calendar_event_for_member", {
+      ...createArgs(randomUUID()),
+      p_subject_member_id: otherMemberId,
+    });
+    expect(invalid.error?.code).toBe("P0001");
+    const noMembership = await outsider.client.rpc("create_calendar_event_for_member", {
+      ...createArgs(randomUUID(), familyId),
+      p_subject_member_id: readerMemberId,
+    });
+    expect(noMembership.error?.code).toBe("P0001");
+  });
+
+  it("CAL-SUB-T03: same request ID cannot silently switch the target member", async () => {
+    const requestId = randomUUID();
+    const args = {
+      ...createArgs(requestId),
+      p_subject_member_id: readerMemberId,
+    };
+    const created = await owner.client.rpc("create_calendar_event_for_member", args);
+    const repeated = await owner.client.rpc("create_calendar_event_for_member", args);
+    expect(created.error).toBeNull();
+    expect(repeated.error).toBeNull();
+    expect(repeated.data).toBe(created.data);
+
+    const changedTarget = await owner.client.rpc("create_calendar_event_for_member", {
+      ...args, p_subject_member_id: ownerMemberId,
+    });
+    expect(changedTarget.error?.code).toBe("P0001");
+  });
+
+  it("CAL-SUB-T04: legacy calendar events still show their original owner as subject", async () => {
+    const legacy = await owner.client.rpc("create_calendar_event", createArgs(randomUUID()));
+    expect(legacy.error).toBeNull();
+    const read = await owner.client.from("calendar_events")
+      .select("subject_member_id").eq("resource_id", legacy.data!).single();
+    expect(read.error).toBeNull();
+    expect(read.data?.subject_member_id).toBeNull();
+  });
+
 
 });
