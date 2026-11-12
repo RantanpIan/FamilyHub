@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { EmptyState, ErrorState, LoadingState } from "@familyhub/ui";
+import type { FamilyMember } from "@familyhub/contracts";
 import { getErrorMessage } from "../auth/auth-utils";
 import { useFamily } from "../family/useFamily";
 import {
@@ -11,25 +12,15 @@ import {
   type CalendarEventInput,
 } from "./calendar-service";
 
-function two(n: number) {
-  return String(n).padStart(2, "0");
-}
-
-function localDay(date: Date): string {
-  return `${date.getFullYear()}-${two(date.getMonth() + 1)}-${two(date.getDate())}`;
-}
-
-function localTimeInput(iso: string | null): string {
-  if (!iso) return "";
-  const date = new Date(iso);
-  return `${localDay(date)}T${two(date.getHours())}:${two(date.getMinutes())}`;
-}
-
-function nextDay(localDate: string): string {
-  const utc = new Date(`${localDate}T00:00:00.000Z`);
-  utc.setUTCDate(utc.getUTCDate() + 1);
-  return utc.toISOString().slice(0, 10);
-}
+import {
+  adjustEndAfterStart,
+  dayLabel,
+  eventOnDay,
+  localDate,
+  monthCells,
+  nextLocalDate,
+  toLocalDateTime,
+} from "./calendar-utils";
 
 function describeEvent(event: CalendarEntry): string {
   if (event.is_all_day) {
@@ -50,33 +41,69 @@ function describeEvent(event: CalendarEntry): string {
 
 function CalendarEditor({
   familyId,
+  ownerMemberId,
+  members,
+  initialDay,
   editing,
   onSaved,
   onCancel,
 }: {
   familyId: string;
+  ownerMemberId: string;
+  members: FamilyMember[];
+  initialDay: string;
   editing: CalendarEntry | null;
   onSaved: () => void;
   onCancel: () => void;
 }) {
+  const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Berlin";
   const [allDay, setAllDay] = useState(editing?.is_all_day ?? false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // An identischer Formularanfrage bleibt die ID über Retry/Netzfehler gleich.
+  const startDefault = initialDay + "T16:00";
+  const [startValue, setStartValue] = useState(
+    toLocalDateTime(editing?.starts_at ?? null) || startDefault,
+  );
+  const [endValue, setEndValue] = useState(
+    toLocalDateTime(editing?.ends_at ?? null) || initialDay + "T17:00",
+  );
+  const manuallyEditedEnd = useRef(false);
+  const [subjectMemberId, setSubjectMemberId] = useState(
+    editing?.subject_member_id ?? editing?.resource.owner_member_id ?? ownerMemberId,
+  );
+  // Stabile Request-ID fuer die identische Anfrage nach einem Netzwerkfehler.
   const requestId = useRef(crypto.randomUUID());
-  const now = new Date();
-  const today = localDay(now);
-  const startDefault = `${today}T16:00`;
-  const endDefault = `${today}T17:00`;
-  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Berlin";
+  const activeMembers = members.filter((member) => member.status === "active");
+  const participantOptions = activeMembers.some((member) => member.member_id === ownerMemberId)
+    ? activeMembers
+    : [
+        {
+          family_id: familyId,
+          member_id: ownerMemberId,
+          display_name: "Ich selbst",
+          status: "active" as const,
+          member_type: "adult" as const,
+          has_login: true,
+        },
+        ...activeMembers,
+      ];
+  const subjectName = participantOptions.find(
+    (member) => member.member_id === subjectMemberId,
+  )?.display_name ?? "Familienmitglied";
+  const isOtherSubject = subjectMemberId !== ownerMemberId;
+
+  function onStartChanged(value: string) {
+    setStartValue(value);
+    setEndValue((current) =>
+      adjustEndAfterStart(value, current, manuallyEditedEnd.current),
+    );
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const title = String(data.get("title") ?? "").trim();
     const day = String(data.get("day") ?? "");
-    const start = String(data.get("startsAt") ?? "");
-    const end = String(data.get("endsAt") ?? "");
 
     if (!title || title.length > 180) {
       setError("Bitte gib einen Titel mit maximal 180 Zeichen ein.");
@@ -87,23 +114,23 @@ function CalendarEditor({
       return;
     }
     if (!allDay && (
-      !start || !end ||
-      !Number.isFinite(Date.parse(start)) ||
-      !Number.isFinite(Date.parse(end)) ||
-      Date.parse(start) >= Date.parse(end)
+      !startValue || !endValue ||
+      !Number.isFinite(Date.parse(startValue)) ||
+      !Number.isFinite(Date.parse(endValue)) ||
+      new Date(startValue).getTime() >= new Date(endValue).getTime()
     )) {
-      setError("Die Endzeit muss nach der Startzeit liegen.");
+      setError("Die Endzeit muss nach dem Beginn liegen.");
       return;
     }
 
     const input: CalendarEventInput = {
       title,
       isAllDay: allDay,
-      startsAt: allDay ? null : new Date(start).toISOString(),
-      endsAt: allDay ? null : new Date(end).toISOString(),
+      startsAt: allDay ? null : new Date(startValue).toISOString(),
+      endsAt: allDay ? null : new Date(endValue).toISOString(),
       startDate: allDay ? day : null,
-      endDateExclusive: allDay ? nextDay(day) : null,
-      timeZone: zone,
+      endDateExclusive: allDay ? nextLocalDate(day) : null,
+      timeZone: browserZone,
     };
 
     setPending(true);
@@ -117,6 +144,7 @@ function CalendarEditor({
           input,
           String(data.get("visibility")) === "family" ? "family" : "private",
           requestId.current,
+          subjectMemberId,
         );
       }
       onSaved();
@@ -137,49 +165,80 @@ function CalendarEditor({
           <input name="title" type="text" maxLength={180} required
             defaultValue={editing?.title ?? ""} />
         </label>
+        {editing ? (
+          <p className="calendar-hint">
+            Termin für: {subjectName}. Die Terminperson bleibt bei der Bearbeitung unverändert.
+          </p>
+        ) : (
+          <label>
+            Termin für
+            <select name="subjectMemberId" value={subjectMemberId}
+              onChange={(event) => setSubjectMemberId(event.currentTarget.value)} required>
+              {participantOptions.map((member) => (
+                <option key={member.member_id} value={member.member_id}>
+                  {member.display_name}
+                  {member.member_id === ownerMemberId ? " (ich)" : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="calendar-all-day">
-          <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.currentTarget.checked)} />
+          <input type="checkbox" checked={allDay}
+            onChange={(event) => setAllDay(event.currentTarget.checked)} />
           Ganztägiger Termin
         </label>
         {allDay ? (
           <label>
             Datum
-            <input name="day" type="date" required defaultValue={editing?.start_date ?? today} />
+            <input name="day" type="date" required
+              defaultValue={editing?.start_date ?? initialDay} />
           </label>
         ) : (
           <div className="calendar-time-fields">
             <label>
               Beginn
               <input name="startsAt" type="datetime-local" required
-                defaultValue={localTimeInput(editing?.starts_at ?? null) || startDefault} />
+                value={startValue}
+                onChange={(event) => onStartChanged(event.currentTarget.value)} />
             </label>
             <label>
               Ende
               <input name="endsAt" type="datetime-local" required
-                defaultValue={localTimeInput(editing?.ends_at ?? null) || endDefault} />
+                min={startValue}
+                value={endValue}
+                onChange={(event) => {
+                  manuallyEditedEnd.current = true;
+                  setEndValue(event.currentTarget.value);
+                }} />
             </label>
           </div>
         )}
         {editing ? (
           <p className="calendar-hint">
             Sichtbarkeit: {editing.resource.visibility === "private" ? "Privat" : "Familie"}.
-            Änderungen an der Sichtbarkeit folgen separat.
+            Sichtbarkeit und Terminperson können später separat geändert werden.
           </p>
         ) : (
           <label>
             Sichtbarkeit
-            <select name="visibility" defaultValue="private">
-              <option value="private">Privat – nur für mich</option>
-              <option value="family">Familie – für angemeldete Mitglieder sichtbar</option>
+            <select name="visibility" defaultValue="family">
+              <option value="family">Familie – für alle angemeldeten Familienmitglieder</option>
+              <option value="private">
+                {isOtherSubject
+                  ? "Privat – nur Ersteller und Terminperson"
+                  : "Privat – nur für mich"}
+              </option>
             </select>
           </label>
         )}
         <p className="calendar-hint">
-          Zeitzone: {zone}. Einzeltermine, noch ohne Wiederholungen und Erinnerungen.
+          Zeitzone: {browserZone}. Einzeltermine ohne Wiederholungen oder Erinnerungen.
+          Bei Änderung des Beginns wird das Ende standardmäßig auf eine Stunde später gesetzt.
         </p>
-        {editing && editing.time_zone !== zone && (
+        {editing && editing.time_zone !== browserZone && (
           <p className="calendar-hint">
-            Hinweis: Beim Speichern wird die Terminzeit in deine lokale Zeitzone übertragen.
+            Beim Speichern werden die Zeiten in deine lokale Zeitzone übertragen.
           </p>
         )}
         <div className="calendar-actions">
