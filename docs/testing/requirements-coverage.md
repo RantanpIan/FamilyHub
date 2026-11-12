@@ -262,3 +262,23 @@ AC-KAL-04 bis AC-KAL-07 (Serien, Erinnerungen, Idempotenz, Zeitzonen-
 und Sommerzeit-Grenzfälle). Zu AC-KAL-02/03 ist nur die grundlegende
 Payload-RLS und Familienisolation abgedeckt; Liste/Suche/Push/Export
 müssen später separat gesichert werden.
+
+
+## FH-CX-009 – Einzeltermine: verifizierbarer Teilumfang
+
+**Status:** CI und Entwicklungsabnahme offen. Keine Aussage, dass das
+Kalender-CRUD bereits auf der Cloud-Instanz verfügbar ist.
+
+| ID | Prüfung |
+| --- | --- |
+| CAL-CMD-T01 | Nutzer legt Termin atomar mit Ressource und eigener Mitgliedschaft an |
+| CAL-CMD-T02 | Wiederholung derselben Request-ID erzeugt keinen zusätzlichen Termin; geänderte Payload unter derselben ID wird abgelehnt |
+| CAL-CMD-T03 | Fremde Familien-ID und anonyme RPC-Aufrufe erzeugen keine Termine |
+| CAL-CMD-T04 | Fehlerhafte Intervalle, unbekannte Zeitzonen und Mischformate werden verworfen |
+| CAL-CMD-T05 | Eigene Änderung erhöht Version; veraltete Änderungsanfrage wird verweigert |
+| CAL-CMD-T06 | Familienfreigabe erteilt kein Schreib-/Löschrecht für fremde Termine |
+| CAL-CMD-T07 | Löschung ist Eigentümer-/Versionsgebunden und entfernt Inhalt samt Ressourceneintrag |
+
+**Manuell nach Cloud-Migration zu prüfen:** Anmeldung zweier Personen,
+Anlage eines privaten und eines gemeinsamen Termins, getrennte Familien,
+Wechsel zwischen Familien, Mobilansicht, Bearbeitung, Konflikte und Löschung.
