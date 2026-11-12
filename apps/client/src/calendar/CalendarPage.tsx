@@ -314,7 +314,8 @@ export function CalendarPage() {
   function selectDay(day: string) {
     setSelectedDay(day);
     if (day.slice(0, 7) !== monthKey) {
-      const [year, month] = day.split("-").map(Number);
+      const year = Number(day.slice(0, 4));
+      const month = Number(day.slice(5, 7));
       setDisplayMonth(new Date(year, month - 1, 1));
     }
   }
