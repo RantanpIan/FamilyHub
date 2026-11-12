@@ -135,3 +135,22 @@ stale-version denial.
 new RPC migration in a reviewed development-cloud rollout. GitHub pull
 requests and CI do not migrate the connected cloud automatically. Run no
 cloud `db reset`, and do not upload real family data into disposable CI.
+
+
+`20261112210000_add_calendar_event_subject.sql` is an additive calendar
+migration: `subject_member_id` describes the family member **for whom**
+an appointment was created, independently of the resource owner (creator).
+It is foreign-keyed to a member of the same family. Existing records are
+backfilled from the resource owner; the legacy create RPC remains functional
+with NULL meaning own appointment. The new authenticated RPC
+`create_calendar_event_for_member` is atomic and preserves the original
+create-request idempotency contract, adding a private request-to-subject
+ledger to prevent a retry changing its target. For private appointments
+whose subject is not their creator, the RPC creates an explicit
+`resource_grants` read permission for that subject only; unrelated
+members never gain access. The subject has no permission to edit or delete.
+The SQL migration does **not** link user accounts to families; that must
+use the existing invitation workflow.
+
+Deploy only after the disposable CI migration and RLS tests and code review.
+No data reset; all existing migrations remain immutable.
