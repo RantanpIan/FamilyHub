@@ -337,6 +337,39 @@ export type Database = {
     };
     Views: { [_ in never]: never };
     Functions: {
+      create_calendar_event: {
+        Args: {
+          p_family_id: string;
+          p_title: string;
+          p_is_all_day: boolean;
+          p_starts_at: string | null;
+          p_ends_at: string | null;
+          p_start_date: string | null;
+          p_end_date_exclusive: string | null;
+          p_time_zone: string;
+          p_visibility: "private" | "family";
+          p_request_id: string;
+        };
+        Returns: string;
+      };
+      update_calendar_event: {
+        Args: {
+          p_resource_id: string;
+          p_expected_version: number;
+          p_title: string;
+          p_is_all_day: boolean;
+          p_starts_at: string | null;
+          p_ends_at: string | null;
+          p_start_date: string | null;
+          p_end_date_exclusive: string | null;
+          p_time_zone: string;
+        };
+        Returns: number;
+      };
+      delete_calendar_event: {
+        Args: { p_resource_id: string; p_expected_version: number };
+        Returns: boolean;
+      };
       create_family: {
         Args: { p_name: string; p_request_id: string };
         Returns: {

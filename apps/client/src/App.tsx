@@ -17,6 +17,7 @@ import { FamilyOnboarding } from "./family/FamilyOnboarding";
 import { FamilyManagement } from "./family/FamilyManagement";
 import { FamilyInvitationAcceptance } from "./family/FamilyInvitationAcceptance";
 import { useFamily } from "./family/useFamily";
+import { CalendarPage } from "./calendar/CalendarPage";
 
 const navigation = [
   { id: "today", label: "Heute", icon: "◷" },
@@ -82,7 +83,7 @@ function PageContent({ page }: { page: PageId }) {
               eyebrow="EURE TERMINE"
               title="Kalender"
               description="Gemeinsame und private Termine an einem Ort."
-              status="Noch nicht verfügbar"
+              status="Einzeltermine in Entwicklung"
               tone="neutral"
             />
             <StatusCard
@@ -428,6 +429,8 @@ function AuthenticatedApp({ onProfile }: { onProfile: () => void }) {
           {signOutError && <ErrorState description={signOutError} />}
           {activePage === "more" ? (
             <FamilyManagement key={family.selectedFamily?.family_id ?? "no-family"} />
+          ) : activePage === "calendar" ? (
+            <CalendarPage key={family.selectedFamily?.family_id ?? "no-family"} />
           ) : (
             <PageContent page={activePage} />
           )}
@@ -470,7 +473,7 @@ function Navigation({
         >
           <span className="nav-icon" aria-hidden="true">{item.icon}</span>
           <span className="nav-label">{item.label}</span>
-          {item.id !== "today" && item.id !== "more" && (
+          {item.id !== "today" && item.id !== "more" && item.id !== "calendar" && (
             <span className="nav-status">Demnächst</span>
           )}
         </button>
