@@ -226,3 +226,22 @@ Cloud-Projekt ohne explizite Freigabe. Anschließend Code-Review und PR.
 **Akzeptanztests:** CAL-DB-T01..T07 aus FH-CX-008 und CAL-CMD-T01..T07 für atomare Terminoperation, Idempotenz, Family-RLS, Validierungen, Versionskonflikt, fremde Änderungsrechte und Löschung. UI-Abnahme auf Smartphone/Desktop noch ausstehend.
 
 **Definition of Done:** Typecheck, Lint, Unit, Build, RLS/Integration und relevante Playwright-Tests grün; Migration nur auf temporären Testdatenbanken vor Cloud-Freigabe; nachvollziehbarer Pull Request. Die UI ist nach einem Merge erst dann mit echten Terminen nutzbar, wenn **beide** Kalender-Migrationen in der Cloud angewendet wurden.
+
+
+## FH-CAL-001 – Kalenderverbesserungen nach realer Familienabnahme (12.11.2026)
+
+**Status:** In Umsetzung auf `feature/fh-calendar-shared-month-subjects`; nicht abgenommen. Getrennte ID, weil Originalscope von FH-CX-010 nicht rekonstruiert und nicht uminterpretiert wird.
+
+**Ausgangslage:** Ein unter `family` freigegebener Termin ist bei Patricia nicht sichtbar. Die anonymisierte Diagnose in `Familyhub_dev` zeigte **zwei aktive Familien mit je genau einem aktiven Benutzerkonto**. Damit ist die Familienfreigabe zwischen Konten derzeit nicht wirksam; bestehende RLS-Policies verbieten korrekterweise familienübergreifende Sichtbarkeit.
+
+**Konkrete Maßnahme (Konfiguration):** Einen Account mit dem vorhandenen Einladungsprozess als aktives Mitglied der richtigen gemeinsamen Familie hinzufügen; bei mehreren Familien in der App den richtigen Familienkontext auswählen. Keine automatische Verknüpfung von Identitäten, kein RLS-Bypass und keine Migration privater Termininhalte.
+
+**Ziel (Funktion):** Vollständige Monatsansicht von Montag bis Sonntag inklusive leerer Tage; Termindetails für den ausgewählten Tag; beim Ändern des Beginns Endzeit automatisch eine Stunde später vorschlagen, sofern die Endzeit nicht bewusst gültig auf einen späteren Zeitpunkt gesetzt wurde; ein aktives Familienmitglied als Terminperson auswählen (z. B. Patricia erstellt Zahnarzt für Sebastian), während die Eigentümerschaft beim Ersteller bleibt.
+
+**Datenmodell:** `calendar_events.subject_member_id` verweist über einen zusammengesetzten Foreign Key ausschließlich auf Mitglieder derselben Familie; alte Termine werden auf bisherige Eigentümer zurückgeführt. Altes Create-RPC bleibt kompatibel (`NULL` in neu angelegten Legacy-Terminen bedeutet Eigentümer). Neuer, atomarer und idempotenter RPC `create_calendar_event_for_member` legt den Termin für ein aktives Mitglied an. Bei `visibility=private` und fremder Zielperson wird nur ein gezieltes Leserecht an die Zielperson vergeben (kein Schreibrecht). Wenn sie noch kein Konto besitzt, kann sie erst nach späterer Anmeldung lesen. Der Ersteller bleibt alleiniger Eigentümer und Bearbeiter.
+
+**Akzeptanz:** Eine Familie mit zwei getrennten aktiven Logins sieht Familien-Termine wechselseitig; fremde Familien und unberechtigte Mitglieder sehen keine privaten Termine. Private Fremdpersonen-Termine sind nur für Ersteller und Terminperson lesbar. Eine fremde Familien-ID als Ziel wird serverseitig abgelehnt. Wiederholte Request-IDs sind idempotent und dürfen Zielpersonen nicht ändern. Alle 42 Rastertage sind inklusive Nachbarmonaten sichtbar, Termin-Tagesbezug gilt auch für mehrere Tage und exklusive Enddaten. Die UI funktioniert bei 320, 390 und Desktop-Breite.
+
+**Ausschlüsse:** Keine automatische Fusion vorhandener Familien, keine KI-/Schul-/Lernplanprojektionen, kein Rollenwechsel, keine Verwaltung fremder privater Ressourcen, keine Teilnehmermehrzahl, keine Änderung der Zielperson nach Erstellung und keine Serien oder Push.
+
+**Definition of Done:** CI Typecheck/Lint/Unit/Build, isolierte PostgreSQL-RLS-/Migrations-/Idempotenztests, Browser-E2E und manuelle Prüfung der beiden bestehenden Konten. Migration auf `Familyhub_dev` nach Review und Merge, niemals unkontrolliert.
