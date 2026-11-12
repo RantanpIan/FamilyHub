@@ -255,7 +255,7 @@ function CalendarEditor({
 }
 
 export function CalendarPage() {
-  const { selectedFamily } = useFamily();
+  const { selectedFamily, members } = useFamily();
   const familyId = selectedFamily?.family_id ?? null;
   const ownerMemberId = selectedFamily?.member_id ?? null;
   const [events, setEvents] = useState<CalendarEntry[]>([]);
@@ -266,6 +266,18 @@ export function CalendarPage() {
   const [editing, setEditing] = useState<CalendarEntry | null>(null);
   const [showEditor, setShowEditor] = useState(false);
   const [revision, setRevision] = useState(0);
+  const today = localDate(new Date());
+  const [selectedDay, setSelectedDay] = useState(today);
+  const [displayMonth, setDisplayMonth] = useState(
+    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+  );
+  const monthKey = localDate(displayMonth).slice(0, 7);
+  const days = monthCells(displayMonth.getFullYear(), displayMonth.getMonth());
+  const selectedEvents = events.filter((event) => eventOnDay(event, selectedDay));
+  const monthLabel = new Intl.DateTimeFormat("de-DE", {
+    month: "long",
+    year: "numeric",
+  }).format(displayMonth);
 
   useEffect(() => {
     let active = true;
@@ -288,24 +300,48 @@ export function CalendarPage() {
     return () => { active = false; };
   }, [familyId, revision]);
 
-  function onSaved() {
-    setEditing(null);
-    setShowEditor(false);
+  function reload() {
+    setLoading(true);
     setRevision((previous) => previous + 1);
   }
 
+  function onSaved() {
+    setEditing(null);
+    setShowEditor(false);
+    reload();
+  }
+
+  function selectDay(day: string) {
+    setSelectedDay(day);
+    if (day.slice(0, 7) !== monthKey) {
+      const [year, month] = day.split("-").map(Number);
+      setDisplayMonth(new Date(year, month - 1, 1));
+    }
+  }
+
+  function shiftMonth(delta: number) {
+    const next = new Date(displayMonth.getFullYear(), displayMonth.getMonth() + delta, 1);
+    setDisplayMonth(next);
+    setSelectedDay(localDate(next));
+  }
+
   async function remove(entry: CalendarEntry) {
-    if (!window.confirm(`Termin „${entry.title}“ wirklich löschen?`)) return;
+    if (!window.confirm("Termin „" + entry.title + "“ wirklich löschen?")) return;
     setPendingDelete(entry.resource_id);
     setActionError(null);
     try {
       await deleteCalendarEvent(entry.resource_id, entry.resource.version);
-      setRevision((previous) => previous + 1);
+      reload();
     } catch (error) {
       setActionError(getErrorMessage(error));
     } finally {
       setPendingDelete(null);
     }
+  }
+
+  function subjectName(entry: CalendarEntry): string {
+    const id = entry.subject_member_id ?? entry.resource.owner_member_id;
+    return members.find((member) => member.member_id === id)?.display_name ?? "Familienmitglied";
   }
 
   if (!familyId || !ownerMemberId) {
@@ -317,7 +353,7 @@ export function CalendarPage() {
       <div className="section-heading">
         <div>
           <span className="eyebrow">FAMILIENKALENDER</span>
-          <h2 id="calendar-title">Termine · {selectedFamily?.family_name}</h2>
+          <h2 id="calendar-title">{selectedFamily?.family_name}</h2>
         </div>
         {!showEditor && (
           <button type="button" className="primary-button" onClick={() => {
@@ -326,58 +362,150 @@ export function CalendarPage() {
           }}>+ Termin</button>
         )}
       </div>
-      <p className="page-intro">Einzeltermine für deine Familie – mit privater oder gemeinsamer Sichtbarkeit.</p>
+      <p className="page-intro">
+        Alle Tage im Blick. Familien-Termine erscheinen bei anderen Konten nur,
+        wenn sie derselben FamilyHub-Familie angehören.
+      </p>
       {loadError && (
         <div className="family-inline-error">
           <ErrorState title="Termine konnten nicht geladen werden" description={loadError} />
-          <button type="button" className="text-button"
-            onClick={() => { setLoading(true); setRevision((v) => v + 1); }}>Erneut versuchen</button>
+          <button type="button" className="text-button" onClick={reload}>
+            Erneut versuchen
+          </button>
         </div>
       )}
       {actionError && <ErrorState description={actionError} />}
       {showEditor && (
-        <CalendarEditor key={editing?.resource_id ?? "new"} familyId={familyId}
-          editing={editing} onSaved={onSaved} onCancel={() => {
+        <CalendarEditor
+          key={editing?.resource_id ?? "new-" + selectedDay}
+          familyId={familyId}
+          ownerMemberId={ownerMemberId}
+          members={members}
+          initialDay={selectedDay}
+          editing={editing}
+          onSaved={onSaved}
+          onCancel={() => {
             setEditing(null);
             setShowEditor(false);
-          }} />
+          }}
+        />
       )}
-      {loading ? (
-        <LoadingState label="Termine werden geladen" />
-      ) : events.length === 0 && !loadError ? (
-        <EmptyState title="Noch keine Termine"
-          description="Erstelle euren ersten Termin. Private Einträge sehen nur berechtigte Familienmitglieder." />
-      ) : (
-        <ul className="calendar-event-list" aria-label="Kalendereinträge">
-          {events.map((entry) => {
-            const isOwner = entry.resource.owner_member_id === ownerMemberId;
+
+      <section className="calendar-month" aria-label="Monatskalender">
+        <div className="calendar-month-toolbar">
+          <button className="text-button" type="button" aria-label="Vorheriger Monat"
+            onClick={() => shiftMonth(-1)}>
+            ‹
+          </button>
+          <h3>{monthLabel}</h3>
+          <button className="text-button" type="button" aria-label="Nächster Monat"
+            onClick={() => shiftMonth(1)}>
+            ›
+          </button>
+          <button className="text-button calendar-today" type="button"
+            onClick={() => {
+              const now = new Date();
+              setSelectedDay(localDate(now));
+              setDisplayMonth(new Date(now.getFullYear(), now.getMonth(), 1));
+            }}>
+            Heute
+          </button>
+        </div>
+        <div className="calendar-weekdays" aria-hidden="true">
+          {["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].map((weekday) => (
+            <span key={weekday}>{weekday}</span>
+          ))}
+        </div>
+        <div className="calendar-month-grid">
+          {days.map((day) => {
+            const dayEvents = events.filter((event) => eventOnDay(event, day));
+            const inMonth = day.slice(0, 7) === monthKey;
+            const isSelected = day === selectedDay;
+            const isToday = day === today;
             return (
-              <li className="calendar-event-card" key={entry.resource_id}>
-                <div className="calendar-event-content">
-                  <span className="calendar-event-meta">
-                    {entry.resource.visibility === "private" ? "Privat" : "Familie"}
+              <button
+                key={day}
+                type="button"
+                className={[
+                  "calendar-day",
+                  inMonth ? "" : "is-adjacent",
+                  isToday ? "is-today" : "",
+                  isSelected ? "is-selected" : "",
+                ].filter(Boolean).join(" ")}
+                aria-label={dayLabel(day) + (dayEvents.length ? ", " + dayEvents.length + " Termine" : ", keine Termine")}
+                aria-pressed={isSelected}
+                data-testid={"calendar-day-" + day}
+                onClick={() => selectDay(day)}
+              >
+                <span className="calendar-day-number">{Number(day.slice(8, 10))}</span>
+                <span className="calendar-day-events" aria-hidden="true">
+                  {dayEvents.slice(0, 2).map((item) => (
+                    <span className="calendar-day-event" key={item.resource_id}>
+                      {item.title}
+                    </span>
+                  ))}
+                  {dayEvents.length > 2 && (
+                    <span className="calendar-day-overflow">
+                      +{dayEvents.length - 2} weitere
+                    </span>
+                  )}
+                </span>
+                {dayEvents.length > 0 && (
+                  <span className="calendar-day-count" aria-hidden="true">
+                    {dayEvents.length}
                   </span>
-                  <h3>{entry.title}</h3>
-                  <p>{describeEvent(entry)}</p>
-                </div>
-                {isOwner && (
-                  <div className="calendar-actions">
-                    <button className="text-button" type="button"
-                      onClick={() => { setEditing(entry); setShowEditor(true); }}>
-                      Bearbeiten
-                    </button>
-                    <button className="text-button" type="button"
-                      disabled={pendingDelete === entry.resource_id}
-                      onClick={() => void remove(entry)}>
-                      {pendingDelete === entry.resource_id ? "Wird gelöscht …" : "Löschen"}
-                    </button>
-                  </div>
                 )}
-              </li>
+              </button>
             );
           })}
-        </ul>
-      )}
+        </div>
+      </section>
+
+      <section className="calendar-selected-day" aria-labelledby="calendar-selected-title">
+        <div className="section-heading">
+          <h3 id="calendar-selected-title">{dayLabel(selectedDay)}</h3>
+          <span className="calendar-count">
+            {selectedEvents.length} {selectedEvents.length === 1 ? "Termin" : "Termine"}
+          </span>
+        </div>
+        {loading ? (
+          <LoadingState label="Termine werden geladen" />
+        ) : selectedEvents.length === 0 && !loadError ? (
+          <EmptyState title="Keine Termine an diesem Tag"
+            description="Wähle einen anderen Tag oder lege einen Termin an." />
+        ) : (
+          <ul className="calendar-event-list" aria-label="Termine am ausgewählten Tag">
+            {selectedEvents.map((entry) => {
+              const isOwner = entry.resource.owner_member_id === ownerMemberId;
+              return (
+                <li className="calendar-event-card" key={entry.resource_id}>
+                  <div className="calendar-event-content">
+                    <span className="calendar-event-meta">
+                      {entry.resource.visibility === "private" ? "Privat" : "Familie"}
+                      {" · Termin für " + subjectName(entry)}
+                    </span>
+                    <h3>{entry.title}</h3>
+                    <p>{describeEvent(entry)}</p>
+                  </div>
+                  {isOwner && (
+                    <div className="calendar-actions">
+                      <button className="text-button" type="button"
+                        onClick={() => { setEditing(entry); setShowEditor(true); }}>
+                        Bearbeiten
+                      </button>
+                      <button className="text-button" type="button"
+                        disabled={pendingDelete === entry.resource_id}
+                        onClick={() => void remove(entry)}>
+                        {pendingDelete === entry.resource_id ? "Wird gelöscht …" : "Löschen"}
+                      </button>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
     </section>
   );
 }
