@@ -239,3 +239,26 @@ Lint und Produktionsbuild.
 Nicht enthalten sind SMTP-Zustellung, Rollenwechsel, Kinderkonto-Aktivierung
 und Eltern-/Kindervertretung. Diese Grenzen sind beabsichtigt und in
 `FH-OPEN-001` dokumentiert; ein UI-Button wäre kein Berechtigungsnachweis.
+
+
+## FH-CX-008 – Kalender-Datenmodell (inkrementeller Schritt)
+
+**Status:** Auf `feature/fh-cx-008-calendar-foundation` implementiert;
+CI und lokale PostgreSQL-Integration müssen noch verifiziert werden.
+Die Tests verwenden ausschließlich die lokale, wegwerfbare Testdatenbank.
+
+| Test-ID | Szenario | Erwartung |
+| --- | --- | --- |
+| CAL-DB-T01 | Ressourceneigentümer liest privaten Termin; fremde Familie fragt Termine ab | Nur eigener Termin sichtbar, fremde Familie sieht nichts |
+| CAL-DB-T02 | Zweites Familienmitglied liest privaten und familienweit freigegebenen Termin | Privater Titel verborgen, freigegebener Termin sichtbar |
+| CAL-DB-T03 | Angemeldeter Client schreibt direkt, anonymer Client liest | Verweigert |
+| CAL-DB-T04 | Umgekehrte Uhrzeitfolge oder gemischte Datumsdarstellungen | SQL-Constraint verweigert |
+| CAL-DB-T05 | Ganztägiger Termin mit exklusivem Enddatum | Konsistent lesbar |
+| CAL-DB-T06 | Referenz über fremde Familie oder falschen Ressourcenfachtyp | Fremdschlüssel verweigert |
+| CAL-DB-T07 | Eigentümer ändert familienweite Sichtbarkeit auf privat | Vorheriger Mitleser sieht keinen Termininhalt mehr |
+
+**Nicht abgedeckt:** AC-KAL-01 (Benutzeranlage/Änderung eines Termins),
+AC-KAL-04 bis AC-KAL-07 (Serien, Erinnerungen, Idempotenz, Zeitzonen-
+und Sommerzeit-Grenzfälle). Zu AC-KAL-02/03 ist nur die grundlegende
+Payload-RLS und Familienisolation abgedeckt; Liste/Suche/Push/Export
+müssen später separat gesichert werden.

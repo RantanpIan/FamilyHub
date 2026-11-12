@@ -183,3 +183,27 @@ Diese nachträgliche Notiz ersetzt nicht das ursprüngliche Auftragspaket. Früh
 - Wer darf Vorbereitungen, Erledigungen und Schulaufgaben für welches Kind anlegen/ändern/einsehen? Offene Rollen-/Kindervertretungsmatrix beachten.
 
 **Umsetzungsempfehlung:** Anforderungen bei den Kalender-Stories FH-CX-008–016 und Schul-/Stundenplan-Stories FH-CX-022–026 als abhängigen fachlichen Erweiterungsbedarf einplanen, bevor ein eigener kleiner, getesteter Lernplan-Auftrag mit Akzeptanzkriterien, Datenmodell, RLS-, Idempotenz- und E2E-Tests freigegeben wird. FH-CX-007 bleibt auf Navigation und AppShell begrenzt.
+
+
+## 10. FH-CX-008 – Start des Kalender-Datenmodells (12.11.2026)
+
+**Status:** In Umsetzung auf `feature/fh-cx-008-calendar-foundation`; Prüfungen und Abnahme offen.
+
+**Implementierungsinkrement:** Eine additive Migration mit `calendar_events`
+für reale Einzeltermine (zeitgebunden oder ganztägig), zusammengesetzt
+an `resources` mit `resource_type='calendar_event'` gebunden.
+Fachinhalt nur lesbar unter dem bestehenden RLS-Ressourcenrecht.
+Keine neuen direkten Schreibrechte; noch keine Benutzeroberfläche.
+Typen und RLS-/Constraint-Tests werden ergänzt.
+
+**Abgrenzung:** Vollwertige Kalendererstellung und -änderung einschließlich
+atomarer Ressourcenerzeugung, `expectedVersion`, Idempotenz, Zeitzonenprüfung,
+Serien, Teilnehmer, Erinnerungen und Lernplan-Anbindung sind nicht Teil dieses
+ersten, isolierten Migrationsinkrements. Sie werden mit den jeweiligen folgenden
+Kalender-/Schulstories koordiniert. Ein fertiger Fachkalender darf aus dieser
+Tabellenanlage nicht abgeleitet werden.
+
+**Definition of Done für dieses Inkrement:** Migration auf wegwerfbarer
+Supabase-Instanz ausführbar, Tenant-/Privatsphäre-/Constraint-Tests grün,
+bestehende Auth-/RLS-/E2E-Tests ohne Regression, keine Änderungen am
+Cloud-Projekt ohne explizite Freigabe. Anschließend Code-Review und PR.

@@ -177,6 +177,53 @@ export type Database = {
           },
         ];
       };
+      calendar_events: {
+        Row: {
+          resource_id: string;
+          family_id: string;
+          resource_type: "calendar_event";
+          title: string;
+          is_all_day: boolean;
+          starts_at: string | null;
+          ends_at: string | null;
+          start_date: string | null;
+          end_date_exclusive: string | null;
+          time_zone: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          resource_id: string;
+          family_id: string;
+          resource_type?: "calendar_event";
+          title: string;
+          is_all_day?: boolean;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          start_date?: string | null;
+          end_date_exclusive?: string | null;
+          time_zone: string;
+        };
+        Update: {
+          title?: string;
+          is_all_day?: boolean;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          start_date?: string | null;
+          end_date_exclusive?: string | null;
+          time_zone?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_resource_type_family_fk";
+            columns: ["resource_id", "family_id", "resource_type"];
+            isOneToOne: true;
+            referencedRelation: "resources";
+            referencedColumns: ["id", "family_id", "resource_type"];
+          },
+        ];
+      };
       resources: {
         Row: {
           id: string;
