@@ -198,9 +198,9 @@ test.describe("family onboarding with a disposable Supabase backend", () => {
         ].join("-");
       });
       await page.getByLabel("Beginn").fill(day + "T14:30");
-      await expect(page.getByLabel("Ende")).toHaveValue(day + "T15:30");
+      await expect(page.locator('input[name="endsAt"]')).toHaveValue(day + "T15:30");
       await page.getByLabel("Beginn").fill(day + "T16:00");
-      await expect(page.getByLabel("Ende")).toHaveValue(day + "T17:00");
+      await expect(page.locator('input[name="endsAt"]')).toHaveValue(day + "T17:00");
       await page.getByRole("button", { name: "Termin erstellen" }).click();
       await expect(page.getByRole("heading", { name: "Synthetic Zahnarzt" })).toBeVisible();
       await expect(page.getByText("Termin für Synthetic dental patient")).toBeVisible();
