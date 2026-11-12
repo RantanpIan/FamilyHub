@@ -252,4 +252,171 @@ describe("FH-CX-008 calendar event schema and RLS", () => {
     expect(hidden.error).toBeNull();
     expect(hidden.data).toEqual([]);
   });
+
+  function createArgs(requestId: string, familyOverride = familyId) {
+    return {
+      p_family_id: familyOverride,
+      p_title: "Synthetic created calendar event",
+      p_is_all_day: false,
+      p_starts_at: "2026-11-17T14:00:00+01:00",
+      p_ends_at: "2026-11-17T15:00:00+01:00",
+      p_start_date: null,
+      p_end_date_exclusive: null,
+      p_time_zone: "Europe/Berlin",
+      p_visibility: "private" as const,
+      p_request_id: requestId,
+    };
+  }
+
+  it("CAL-CMD-T01: creates resource and payload atomically, with the logged-in owner", async () => {
+    const response = await owner.client.rpc("create_calendar_event", createArgs(randomUUID()));
+    expect(response.error).toBeNull();
+    expect(response.data).toBeTruthy();
+    const resource = await owner.client.from("resources")
+      .select("owner_member_id, family_id, visibility, resource_type, version")
+      .eq("id", response.data!).single();
+    expect(resource.error).toBeNull();
+    expect(resource.data).toMatchObject({
+      owner_member_id: ownerMemberId,
+      family_id: familyId,
+      visibility: "private",
+      resource_type: "calendar_event",
+      version: 1,
+    });
+    const payload = await owner.client.from("calendar_events")
+      .select("title").eq("resource_id", response.data!).single();
+    expect(payload.error).toBeNull();
+    expect(payload.data?.title).toBe("Synthetic created calendar event");
+  });
+
+  it("CAL-CMD-T02: repeated request ID returns same event without duplicate", async () => {
+    const args = createArgs(randomUUID());
+    const first = await owner.client.rpc("create_calendar_event", args);
+    const second = await owner.client.rpc("create_calendar_event", args);
+    expect(first.error).toBeNull();
+    expect(second.error).toBeNull();
+    expect(second.data).toBe(first.data);
+    const row = await owner.client.from("calendar_events")
+      .select("resource_id").eq("resource_id", first.data!);
+    expect(row.error).toBeNull();
+    expect(row.data).toHaveLength(1);
+    const collision = await owner.client.rpc("create_calendar_event", {
+      ...args, p_title: "Other payload same request",
+    });
+    expect(collision.error?.code).toBe("P0001");
+  });
+
+  it("CAL-CMD-T03: cannot create an event for an unrelated family or as anonymous caller", async () => {
+    const foreign = await reader.client.rpc("create_calendar_event", createArgs(randomUUID(), otherFamilyId));
+    expect(foreign.error?.code).toBe("P0001");
+    const noSession = createClient<Database, "public">(url, anon, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const anonymous = await noSession.rpc("create_calendar_event", createArgs(randomUUID()));
+    expect(anonymous.error).not.toBeNull();
+  });
+
+  it("CAL-CMD-T04: rejects invalid intervals, unknown time zones, and inconsistent dates", async () => {
+    const args = createArgs(randomUUID());
+    const invalidTime = await owner.client.rpc("create_calendar_event", {
+      ...args, p_ends_at: "2026-11-17T13:00:00+01:00",
+    });
+    expect(invalidTime.error?.code).toBe("P0001");
+    const invalidZone = await owner.client.rpc("create_calendar_event", {
+      ...args, p_time_zone: "Synthetic/NotAZone",
+    });
+    expect(invalidZone.error?.code).toBe("P0001");
+    const mixed = await owner.client.rpc("create_calendar_event", {
+      ...args, p_start_date: "2026-11-17",
+    });
+    expect(mixed.error?.code).toBe("P0001");
+  });
+
+  it("CAL-CMD-T05: owner can update with expectedVersion, stale update is rejected", async () => {
+    const created = await owner.client.rpc("create_calendar_event", createArgs(randomUUID()));
+    expect(created.error).toBeNull();
+    const modified = await owner.client.rpc("update_calendar_event", {
+      p_resource_id: created.data!,
+      p_expected_version: 1,
+      p_title: "Synthetic calendar updated",
+      p_is_all_day: true,
+      p_starts_at: null,
+      p_ends_at: null,
+      p_start_date: "2026-11-18",
+      p_end_date_exclusive: "2026-11-19",
+      p_time_zone: "Europe/Berlin",
+    });
+    expect(modified.error).toBeNull();
+    expect(modified.data).toBe(2);
+    const stale = await owner.client.rpc("update_calendar_event", {
+      p_resource_id: created.data!,
+      p_expected_version: 1,
+      p_title: "Wrong stale change",
+      p_is_all_day: true,
+      p_starts_at: null,
+      p_ends_at: null,
+      p_start_date: "2026-11-18",
+      p_end_date_exclusive: "2026-11-19",
+      p_time_zone: "Europe/Berlin",
+    });
+    expect(stale.error?.code).toBe("P0001");
+    const verify = await owner.client.from("calendar_events")
+      .select("title, start_date").eq("resource_id", created.data!).single();
+    expect(verify.data).toMatchObject({
+      title: "Synthetic calendar updated",
+      start_date: "2026-11-18",
+    });
+  });
+
+  it("CAL-CMD-T06: another family member cannot update or delete someone else's event", async () => {
+    const created = await owner.client.rpc("create_calendar_event", {
+      ...createArgs(randomUUID()),
+      p_visibility: "family",
+    });
+    expect(created.error).toBeNull();
+    const deniedUpdate = await reader.client.rpc("update_calendar_event", {
+      p_resource_id: created.data!,
+      p_expected_version: 1,
+      p_title: "Unauthorized edit",
+      p_is_all_day: false,
+      p_starts_at: "2026-11-17T14:00:00+01:00",
+      p_ends_at: "2026-11-17T15:00:00+01:00",
+      p_start_date: null,
+      p_end_date_exclusive: null,
+      p_time_zone: "Europe/Berlin",
+    });
+    expect(deniedUpdate.error?.code).toBe("P0001");
+    const deniedDelete = await reader.client.rpc("delete_calendar_event", {
+      p_resource_id: created.data!,
+      p_expected_version: 1,
+    });
+    expect(deniedDelete.error?.code).toBe("P0001");
+    const visible = await reader.client.from("calendar_events")
+      .select("title").eq("resource_id", created.data!).single();
+    expect(visible.error).toBeNull();
+    expect(visible.data?.title).toBe("Synthetic created calendar event");
+  });
+
+  it("CAL-CMD-T07: owner delete cascades safely and stale delete is rejected", async () => {
+    const created = await owner.client.rpc("create_calendar_event", createArgs(randomUUID()));
+    expect(created.error).toBeNull();
+    const stale = await owner.client.rpc("delete_calendar_event", {
+      p_resource_id: created.data!,
+      p_expected_version: 999,
+    });
+    expect(stale.error?.code).toBe("P0001");
+    const deleted = await owner.client.rpc("delete_calendar_event", {
+      p_resource_id: created.data!,
+      p_expected_version: 1,
+    });
+    expect(deleted.error).toBeNull();
+    expect(deleted.data).toBe(true);
+    const payload = await owner.client.from("calendar_events")
+      .select("resource_id").eq("resource_id", created.data!);
+    const resource = await owner.client.from("resources")
+      .select("id").eq("id", created.data!);
+    expect(payload.data).toEqual([]);
+    expect(resource.data).toEqual([]);
+  });
+
 });
