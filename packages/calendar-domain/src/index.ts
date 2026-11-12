@@ -1,5 +1,5 @@
 export const calendarModule = {
   id: "calendar",
-  status: "unavailable",
-  statusLabel: "Noch nicht verfügbar",
+  status: "in_progress",
+  statusLabel: "Einzeltermine in Entwicklung",
 } as const;
