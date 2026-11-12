@@ -7,7 +7,7 @@ alter table public.calendar_events
   add constraint calendar_events_subject_family_fk
   foreign key (subject_member_id, family_id)
   references public.family_members (id, family_id)
-  on delete restrict;
+  on delete no action deferrable initially deferred;
 
 -- Alttermine sind weiterhin fuer ihren bisherigen Eigentümer bestimmt.
 update public.calendar_events as event
