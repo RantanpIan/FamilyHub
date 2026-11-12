@@ -115,6 +115,41 @@ test.describe("family onboarding with a disposable Supabase backend", () => {
     });
   });
 
+  test("FH-CX-009: a signed-in family owner creates, edits and deletes an all-day event on mobile", async ({ page }) => {
+    await withConfirmedUser(async (user) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto("/auth");
+      await page.getByLabel("E-Mail-Adresse").fill(user.email);
+      await page.getByLabel("Passwort", { exact: true }).fill(user.password);
+      await page.getByRole("button", { name: "Anmelden" }).click();
+      await expect(page.getByRole("heading", { name: "Erstelle eure Familie" })).toBeVisible();
+
+      await page.getByLabel("Familienname").fill("Synthetic calendar E2E family");
+      await page.getByRole("button", { name: "Familie erstellen" }).click();
+      await expect(page.getByTestId("app-shell")).toBeVisible();
+
+      await page.getByRole("navigation", { name: "Mobile Hauptnavigation" })
+        .getByRole("button", { name: "Kalender" }).click();
+      await expect(page.getByRole("heading", { name: "Termine · Synthetic calendar E2E family" })).toBeVisible();
+      await page.getByRole("button", { name: "+ Termin" }).click();
+
+      await page.getByLabel("Titel").fill("Synthetic calendar E2E event");
+      await page.getByRole("checkbox", { name: "Ganztägiger Termin" }).check();
+      await page.getByLabel("Datum").fill("2026-11-21");
+      await page.getByRole("button", { name: "Termin erstellen" }).click();
+
+      await expect(page.getByRole("heading", { name: "Synthetic calendar E2E event" })).toBeVisible();
+      await page.getByRole("button", { name: "Bearbeiten" }).click();
+      await page.getByLabel("Titel").fill("Synthetic calendar E2E updated");
+      await page.getByRole("button", { name: "Änderung speichern" }).click();
+      await expect(page.getByRole("heading", { name: "Synthetic calendar E2E updated" })).toBeVisible();
+
+      page.once("dialog", (dialog) => void dialog.accept());
+      await page.getByRole("button", { name: "Löschen" }).click();
+      await expect(page.getByRole("heading", { name: "Noch keine Termine" })).toBeVisible();
+    });
+  });
+
   test("FAM-T07, T08, T15: an administrator creates and updates a managed child profile", async ({ page }) => {
     await withConfirmedUser(async (user) => {
       await page.goto("/auth");
