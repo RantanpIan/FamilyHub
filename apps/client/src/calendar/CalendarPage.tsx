@@ -222,7 +222,7 @@ function CalendarEditor({
         ) : (
           <label>
             Sichtbarkeit
-            <select name="visibility" defaultValue="family">
+            <select name="visibility" defaultValue="private">
               <option value="family">Familie – für alle angemeldeten Familienmitglieder</option>
               <option value="private">
                 {isOtherSubject
