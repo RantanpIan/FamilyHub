@@ -84,3 +84,30 @@ disabled pending `FH-OPEN-001`.
 
 Later application tables must keep family data tenant-scoped and use
 PostgreSQL Row Level Security (RLS). Do not store real personal data in tests.
+
+
+`20261112180000_create_calendar_events.sql` is the incremental FH-CX-008 calendar
+data-model foundation. `calendar_events` stores one real event's content;
+a composite FK (`resource_id`, `family_id`, `resource_type`) ties the
+content to a matching `calendar_event` resource in the existing access registry.
+There is no second owner or visibility column. RLS on the payload uses
+`can_read_resource(resource_id)` and all direct authenticated writes to the
+payload are denied. The resource registry's existing owner/family/grant
+semantics remain authoritative.
+
+Timed events use two `timestamptz` instants and a display time-zone name;
+all-day events use local dates with an exclusive end date. An interval CHECK
+disallows inverted intervals and mixed representations. Strict IANA zone
+validation before accepting client writes is a required follow-up. This schema
+does not implement recurring events, occurrence exceptions, reminders,
+participants, school projections, learner plans or calendar UI. Crucially,
+an authorized atomic create/update RPC has **not** yet been introduced,
+so normal users cannot create a calendar event payload until that separate
+use case is developed and tested.
+
+`tests/integration/calendar-events.rls.test.ts` covers read isolation,
+owner privacy, same-family sharing, anonymous/direct-write denial, duration
+constraints, all-day dates, mismatched resource linkage, and access revocation.
+Tests use only disposable local Supabase data. Do not apply this migration
+to the linked cloud project before successful CI, migration review and
+explicit approval.
