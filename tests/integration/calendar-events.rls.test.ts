@@ -35,6 +35,14 @@ async function user(label: string) {
   });
   if (error || !data.user) throw error ?? new Error("User fixture missing.");
   createdUsers.push(data.user.id);
+  // create_family requires a profile record. Supabase Auth creates only the
+  // auth.users row; production creates user_profiles after confirmation.
+  // Keep this isolated test fixture consistent with that actual contract.
+  const { error: profileError } = await service.from("user_profiles").upsert({
+    user_id: data.user.id,
+    display_name: label,
+  });
+  if (profileError) throw profileError;
   const client = createClient<Database, "public">(url, anon, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
