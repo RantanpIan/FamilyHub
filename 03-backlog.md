@@ -207,3 +207,22 @@ Tabellenanlage nicht abgeleitet werden.
 Supabase-Instanz ausführbar, Tenant-/Privatsphäre-/Constraint-Tests grün,
 bestehende Auth-/RLS-/E2E-Tests ohne Regression, keine Änderungen am
 Cloud-Projekt ohne explizite Freigabe. Anschließend Code-Review und PR.
+
+
+## 11. FH-CX-009 – Nutzbare Einzeltermine (inkrementell, 12.11.2026)
+
+**Status:** In Umsetzung auf `feature/fh-cx-009-calendar-event-crud`; Originalauftragstext nicht vorhanden, daher ist dies ein nachprüfbarer **Teilumfang**, kein Ersatz für die historische vollständige Story.
+
+**Ziel:** Angemeldete Familienmitglieder können eigene einzelne Kalendertermine anlegen, ändern, löschen und die für sie lesbaren Termine ihrer aktiven Familie sehen.
+
+**Umfang:** atomare, idempotente Erstellung einer Zugriffsressource samt Kalenderinhalt; Eigentümerschaft ausschließlich aus `auth.uid()`/aktiver Mitgliedschaft; explizit wählbar private/familienweite Sichtbarkeit beim Erstellen (sicherer Default privat); Optimistic Locking bei Änderung/Löschung; Prüfung von Endzeit, Ganztagesdatum und IANA-Zeitzone; schlichte responsive Kalenderliste und Formular.
+
+**Berechtigungen:** Nur der verknüpfte Kontoinhaber darf einen eigenen Termin schreiben/löschen. Andere aktive Mitglieder derselben Familie sehen familienweit freigegebene Termine, keine privaten Termine; berechtigte Grants gelten wie im Ressourcenmodell. Verwaltungsrechte auf verwaltete Kinderprofile sind **nicht** mit Kalender-Schreibrechten gleichzusetzen. Kein familienübergreifender Zugriff.
+
+**Ausgeschlossen:** Serien, Ausnahmen, Teilnehmer, Lernplan, Schulaufgaben, Unterrichtsprojektionen, Push und Reminder, Import/OCR, Kalenderexport, standardisierte Zeitzonenauswahl, Editieren der Sichtbarkeit im Kalenderformular und Änderungen fremder oder verwalteter Profile.
+
+**Abhängigkeiten:** FH-CX-005/006/007/008 auf `main`; fachliche Cloud-Migration von FH-CX-008 muss vor FH-CX-009 eingespielt werden (nur nach erfolgreichem CI und Review). Das aktuelle Cloud-Development-Projekt erhält durch GitHub-Commits **keine** automatische neue Tabelle.
+
+**Akzeptanztests:** CAL-DB-T01..T07 aus FH-CX-008 und CAL-CMD-T01..T07 für atomare Terminoperation, Idempotenz, Family-RLS, Validierungen, Versionskonflikt, fremde Änderungsrechte und Löschung. UI-Abnahme auf Smartphone/Desktop noch ausstehend.
+
+**Definition of Done:** Typecheck, Lint, Unit, Build, RLS/Integration und relevante Playwright-Tests grün; Migration nur auf temporären Testdatenbanken vor Cloud-Freigabe; nachvollziehbarer Pull Request. Die UI ist nach einem Merge erst dann mit echten Terminen nutzbar, wenn **beide** Kalender-Migrationen in der Cloud angewendet wurden.
