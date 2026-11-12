@@ -49,7 +49,7 @@ Die Sammelbezeichnungen der Gruppen sind **keine** rekonstruierten Originaltitel
 | FH-CX-004 | Familienverwaltung | **Familienverwaltung und Familienmitglieder** | **Abgeschlossen** |
 | FH-CX-005 | Identity / Family / Access | **Ressourcenberechtigungen, Eigentümerschaft und private Inhalte** | **Implementiert; Abnahme gesondert nachweisen** |
 | FH-CX-006 | Identity / Family / Access | **Familieneinladungen, Mitgliedschaften und Rollenverwaltung** | **Lokal umgesetzt und validiert; Rollenänderungen nach FH-OPEN-001 gesperrt; GitHub Actions nicht bestätigt** |
-| FH-CX-007 | Foundation | Originalauftrag ergänzen | Nicht verifiziert |
+| FH-CX-007 | Foundation | **Responsive AppShell und Navigation (vorläufiger Entwicklungsumfang)** | **In Umsetzung auf feature/fh-cx-007-responsive-appshell; Tests noch nicht bestätigt** |
 | FH-CX-008 | Kalender | Originalauftrag ergänzen | Nicht verifiziert |
 | FH-CX-009 | Kalender | Originalauftrag ergänzen | Nicht verifiziert |
 | FH-CX-010 | Kalender | Originalauftrag ergänzen | Nicht verifiziert |
@@ -143,3 +143,13 @@ Die folgenden Kanten sind aus der vorherigen Planung bekannt. Die Semantik ist j
 - Weitere ursprüngliche Freigabe-/Gating-Abhängigkeiten.
 
 **Dokumentationsregel:** Fehlende Originalinformationen nur als **„offen – Quelle nachtragen“** führen, nicht mit plausibel klingenden erfundenen Entscheidungen füllen. Die vollständigen Original-Aufträge müssen weiterhin aufbewahrt bzw. in dieses Register eingepflegt werden.
+
+
+## 8. Aktuelle Umsetzungsnotiz – 12.11.2026
+
+Diese nachträgliche Notiz ersetzt nicht das ursprüngliche Auftragspaket. Frühere Statuszeilen in diesem Dokument können einen älteren Entwicklungsstand beschreiben.
+
+- **FH-CX-005:** Laut bisherigem Projektverlauf abgenommen; Freigaben für private und familienbezogene Ressourcen bleiben die Grundlage.
+- **FH-CX-006:** Anwender hat den Praxistest als abgenommen bestätigt. Die sechs lokalen und sechs Remote-Migrationen im Supabase-Projekt `Familyhub_dev` wurden mit der CLI abgeglichen. Die aktuelle GitHub-Actions-Freigabe ist hier nicht unabhängig nachgewiesen.
+- **FH-CX-007 – in Umsetzung:** Vorhandene React-AppShell verbessern, nicht ersetzen. Responsive Kopfzeile mit Familienauswahl auch auf Smartphones, zugängliche Navigationsflächen, Desktop/Tablet-Skalierung, Familienkontext und Playwright-Regressionstests. Keine neuen Datenbankmigrationen. Umsetzung zunächst auf eigenem Entwicklungsbranch; CI- und Abnahmestatus offen.
+- **Nachfolgende neue Anforderung – Lernplan (vorgeschlagen, nicht Bestandteil FH-CX-007):** Ein Lernplan pro Kind und zugeordnetem Stundenplan soll die Vorbereitung für den nächsten Schultag anzeigen. Bei einer Schulaufgabe soll ab 14 Tagen vor dem Termin ein zusätzlicher Lern-Zeitslot sichtbar bzw. planbar sein. Die fachliche Quelle für Schulaufgaben, die Zeitslot-Regeln, Ferientage und Änderungen des Stundenplans müssen vor einem eigenen Entwicklungsauftrag geklärt werden. Kein eigenständiges neues Datenmodell ohne Abstimmung mit Kalender- und Schulmodul; kind- und familienbezogene Sichtbarkeit durch RLS schützen.
