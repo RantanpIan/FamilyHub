@@ -49,7 +49,7 @@ Die Sammelbezeichnungen der Gruppen sind **keine** rekonstruierten Originaltitel
 | FH-CX-004 | Familienverwaltung | **Familienverwaltung und Familienmitglieder** | **Abgeschlossen** |
 | FH-CX-005 | Identity / Family / Access | **Ressourcenberechtigungen, Eigentümerschaft und private Inhalte** | **Implementiert; Abnahme gesondert nachweisen** |
 | FH-CX-006 | Identity / Family / Access | **Familieneinladungen, Mitgliedschaften und Rollenverwaltung** | **Lokal umgesetzt und validiert; Rollenänderungen nach FH-OPEN-001 gesperrt; GitHub Actions nicht bestätigt** |
-| FH-CX-007 | Foundation | Originalauftrag ergänzen | Nicht verifiziert |
+| FH-CX-007 | Foundation | **Responsive AppShell und Navigation (vorläufiger Entwicklungsumfang)** | **In Umsetzung auf feature/fh-cx-007-responsive-appshell; Tests noch nicht bestätigt** |
 | FH-CX-008 | Kalender | Originalauftrag ergänzen | Nicht verifiziert |
 | FH-CX-009 | Kalender | Originalauftrag ergänzen | Nicht verifiziert |
 | FH-CX-010 | Kalender | Originalauftrag ergänzen | Nicht verifiziert |
@@ -143,3 +143,43 @@ Die folgenden Kanten sind aus der vorherigen Planung bekannt. Die Semantik ist j
 - Weitere ursprüngliche Freigabe-/Gating-Abhängigkeiten.
 
 **Dokumentationsregel:** Fehlende Originalinformationen nur als **„offen – Quelle nachtragen“** führen, nicht mit plausibel klingenden erfundenen Entscheidungen füllen. Die vollständigen Original-Aufträge müssen weiterhin aufbewahrt bzw. in dieses Register eingepflegt werden.
+
+
+## 8. Aktuelle Umsetzungsnotiz – 12.11.2026
+
+Diese nachträgliche Notiz ersetzt nicht das ursprüngliche Auftragspaket. Frühere Statuszeilen in diesem Dokument können einen älteren Entwicklungsstand beschreiben.
+
+- **FH-CX-005:** Laut bisherigem Projektverlauf abgenommen; Freigaben für private und familienbezogene Ressourcen bleiben die Grundlage.
+- **FH-CX-006:** Anwender hat den Praxistest als abgenommen bestätigt. Die sechs lokalen und sechs Remote-Migrationen im Supabase-Projekt `Familyhub_dev` wurden mit der CLI abgeglichen. Die aktuelle GitHub-Actions-Freigabe ist hier nicht unabhängig nachgewiesen.
+- **FH-CX-007 – in Umsetzung:** Vorhandene React-AppShell verbessern, nicht ersetzen. Responsive Kopfzeile mit Familienauswahl auch auf Smartphones, zugängliche Navigationsflächen, Desktop/Tablet-Skalierung, Familienkontext und Playwright-Regressionstests. Keine neuen Datenbankmigrationen. Umsetzung zunächst auf eigenem Entwicklungsbranch; CI- und Abnahmestatus offen.
+- **Nachfolgende neue Anforderung – Lernplan (fachlich gewünscht, nicht Bestandteil FH-CX-007):** Siehe Abschnitt 9. Umsetzungsplanung zusammen mit Kalender und Stundenplan; nicht als bloße UI-Funktion vorziehen.
+
+
+## 9. Lernplan auf Basis des Stundenplans – fachliche Ergänzung (12.11.2026)
+
+**Status:** Fachliche Anforderungen vom Anwender benannt; Integration in Kalender/Stundenplan gewünscht. Implementierung offen; Umsetzung ausdrücklich **nicht** in FH-CX-007. Diese Ergänzung ist noch kein freigegebener neuer `FH-CX-...`-Auftrag.
+
+**Beschriebene Anforderungen:**
+1. **Je Kind und zugeordnetem Stundenplan ein eigener Lernplan.** Bei mehreren Stundenplänen dürfen Inhalte nicht vermischt werden.
+2. **Vorbereitung auf den nächsten Schultag:** Der Lernplan zeigt für die Fächer des nächsten Unterrichtstags an, was vorbereitet bzw. gelernt werden soll. Die genaue Quelle der Vorbereitungsschritte ist noch zu spezifizieren; ein Stundenplan allein enthält normalerweise keine Hausaufgaben.
+3. **Schulaufgaben:** Für eine anstehende Schulaufgabe ist bereits **14 Tage vorher** ein zusätzlicher Lern-Zeitslot im Kalender/Lernplan vorgesehen. Terminänderungen, Absagen und Ausnahmen dürfen nicht zu doppelten Zeitslots führen.
+4. **Tägliches Abhaken:** Die vorbereiteten Fächer/Aktivitäten eines Lernplans sind einzeln abschließbar. Ein vollständiger Lerntag zählt nur, wenn alle für den relevanten Tag verpflichtenden Einträge erledigt sind.
+5. **Lernserie (Streak-Counter):** Je Lernplan wird angezeigt, an wie vielen aufeinanderfolgenden Tagen die vollständige Vorbereitung erledigt wurde. Der Counter muss bei Änderungen an Stundenplan und Erledigungszustand konsistent und deterministisch berechnet werden.
+6. **Sticker-Belohnungssystem:** Beim Erreichen festzulegender Lernziele können Kinder digitale Sticker verdienen und in einer Sammlung sehen. Belohnungen dürfen nicht fälschbar oder durch parallele Wiederholungen doppelt gutgeschrieben werden.
+
+**Abhängigkeiten und konsistente Architektur:**
+- Kalender ist führendes Terminsystem. Schulaufgaben sind reale Kalendertermine; Lern-Zeitslots müssen sich auf diese und auf das betroffene Kind beziehen, ohne konkurrierende Termin-Wahrheitsquellen aufzubauen.
+- Schule/Stundenplan liefert Unterrichtsstruktur (Gültigkeit, Wochentage, Ausfälle/Ausnahmen). Lernpläne dürfen keine zweiten Stundenpläne als Schattenkopie speichern.
+- Änderungen/Löschungen an Stundenplan und Schulaufgaben müssen geplante Lerneinheiten und Counter sicher aktualisieren.
+- Pro Kind/Plan klare Eigentümerschaft, Rollen, private Sichtbarkeit und RLS; keine Daten anderer Kinder oder Familien in Statistiken, Stickern, Push oder Exports offenlegen.
+- Sticker und Lernserie sind motivierendes Feedback, keine Pflicht zur Nutzung und kein Ranking zwischen Kindern.
+
+**Noch offen – im fachlichen Auftrag klären:**
+- Was genau als Vorbereitung gilt: manuell gepflegte Aufgaben/Materialien oder vorgeschlagene Schritte aus dem Stundenplan?
+- Bezieht sich „Tage in Folge“ auf **Kalendertage** oder **relevante Schultage**? Vorschlag: nur geplante Schultage werten, Ferien/Wochenenden neutral behandeln.
+- Bedeutet „14 Tage vorher ein Extra-Zeitslot“ genau **einen** Slot am Tag -14 oder **mehrere** Lerneinheiten im 14-Tage-Vorbereitungsfenster? Ohne Entscheidung keine automatische Serie erzeugen.
+- Dauer, Uhrzeit, Konfliktlösung und Editierbarkeit des Lern-Zeitslots; Umgang mit mehreren Schulaufgaben.
+- Sticker-Regeln (Schwellen, Motive, Wiederholbarkeit, Zurücksetzen/Korrekturen) und Umgang mit verpassten Tagen.
+- Wer darf Vorbereitungen, Erledigungen und Schulaufgaben für welches Kind anlegen/ändern/einsehen? Offene Rollen-/Kindervertretungsmatrix beachten.
+
+**Umsetzungsempfehlung:** Anforderungen bei den Kalender-Stories FH-CX-008–016 und Schul-/Stundenplan-Stories FH-CX-022–026 als abhängigen fachlichen Erweiterungsbedarf einplanen, bevor ein eigener kleiner, getesteter Lernplan-Auftrag mit Akzeptanzkriterien, Datenmodell, RLS-, Idempotenz- und E2E-Tests freigegeben wird. FH-CX-007 bleibt auf Navigation und AppShell begrenzt.

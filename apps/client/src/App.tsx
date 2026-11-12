@@ -372,11 +372,17 @@ function AuthenticatedApp({ onProfile }: { onProfile: () => void }) {
 
   return (
     <div className="app-shell" data-testid="app-shell">
+      <a className="skip-link" href="#main-content">Zum Hauptinhalt springen</a>
       <aside className="sidebar">
-        <a className="brand" href="/" aria-label="FamilyHub Startseite">
+        <button
+          className="brand brand-button"
+          type="button"
+          aria-label="Zur Startseite"
+          onClick={() => setActivePage("today")}
+        >
           <span className="brand-mark" aria-hidden="true">f</span>
           <span>family<span className="brand-accent">hub</span></span>
-        </a>
+        </button>
         <span className="sidebar-caption">EURE FAMILIE, GUT ORGANISIERT</span>
         <Navigation activePage={activePage} onNavigate={setActivePage} />
         <div className="sidebar-footer">
@@ -408,7 +414,7 @@ function AuthenticatedApp({ onProfile }: { onProfile: () => void }) {
             </label>
           )}
           <span className="topbar-note">Angemeldet als {profile?.display_name}</span>
-          <button className="account-button" type="button" onClick={onProfile}>
+          <button className="account-button" type="button" aria-label="Profil öffnen" onClick={onProfile}>
             <span className="avatar-placeholder" aria-hidden="true">
               {profile?.display_name.slice(0, 1).toUpperCase() ?? "F"}
             </span>
@@ -418,10 +424,10 @@ function AuthenticatedApp({ onProfile }: { onProfile: () => void }) {
             Abmelden
           </button>
         </header>
-        <main className="main-content">
+        <main className="main-content" id="main-content" tabIndex={-1}>
           {signOutError && <ErrorState description={signOutError} />}
           {activePage === "more" ? (
-            <FamilyManagement />
+            <FamilyManagement key={family.selectedFamily?.family_id ?? "no-family"} />
           ) : (
             <PageContent page={activePage} />
           )}
@@ -450,7 +456,10 @@ function Navigation({
   mobile?: boolean;
 }) {
   return (
-    <nav className={mobile ? "main-nav mobile-nav" : "main-nav"} aria-label="Hauptnavigation">
+    <nav
+      className={mobile ? "main-nav mobile-nav" : "main-nav"}
+      aria-label={mobile ? "Mobile Hauptnavigation" : "Desktop Hauptnavigation"}
+    >
       {navigation.map((item) => (
         <button
           key={item.id}
