@@ -76,6 +76,45 @@ test.describe("family onboarding with a disposable Supabase backend", () => {
     });
   });
 
+  test("FH-CX-007: desktop and phone navigation preserve the active family", async ({ page }) => {
+    await withConfirmedUser(async (user) => {
+      await page.goto("/auth");
+      await page.getByLabel("E-Mail-Adresse").fill(user.email);
+      await page.getByLabel("Passwort", { exact: true }).fill(user.password);
+      await page.getByRole("button", { name: "Anmelden" }).click();
+      await expect(page.getByRole("heading", { name: "Erstelle eure Familie" })).toBeVisible();
+
+      await page.getByLabel("Familienname").fill("Synthetic responsive family");
+      await page.getByRole("button", { name: "Familie erstellen" }).click();
+      await expect(page.getByTestId("app-shell")).toBeVisible();
+
+      for (const width of [1280, 768, 390, 320]) {
+        await page.setViewportSize({ width, height: 800 });
+        const mobile = width <= 680;
+        const nav = page.getByRole("navigation", {
+          name: mobile ? "Mobile Hauptnavigation" : "Desktop Hauptnavigation",
+        });
+        await expect(nav).toBeVisible();
+        await expect(page.getByLabel("Aktive Familie").first()).toBeVisible();
+        await expect(page.getByRole("button", { name: "Profil öffnen" })).toBeVisible();
+
+        const hasHorizontalOverflow = await page.evaluate(
+          () => document.documentElement.scrollWidth > window.innerWidth,
+        );
+        expect(hasHorizontalOverflow, `horizontal overflow at ${width}px`).toBe(false);
+      }
+
+      await page.getByRole("navigation", { name: "Mobile Hauptnavigation" })
+        .getByRole("button", { name: "Mehr" }).click();
+      await expect(page.getByRole("heading", { name: "Synthetic responsive family" })).toBeVisible();
+
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.getByRole("button", { name: "Zur Startseite" }).click();
+      await expect(page.getByRole("heading", { name: /Alles im Blick/ })).toBeVisible();
+      await expect(page.getByTestId("app-shell")).toBeVisible();
+    });
+  });
+
   test("FAM-T07, T08, T15: an administrator creates and updates a managed child profile", async ({ page }) => {
     await withConfirmedUser(async (user) => {
       await page.goto("/auth");
