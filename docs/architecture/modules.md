@@ -2,7 +2,7 @@
 
 | Bereich | Paket/Ort | Foundation-Status | Verantwortungsgrenze |
 | --- | --- | --- | --- |
-| Identity / Family / Access | `apps/client/src/family`, `apps/client/src/access`, `packages/authorization`, `supabase/migrations` | Identität, gehashte Einladungen, Mitgliedschaft, Ressourcenregister und Lesefreigaben mit RLS | Client-Service, Berechtigungsmetadaten und Autorisierung, keine Fachinhalte |
+| Identity / Family / Access | `apps/client/src/family`, `apps/client/src/access`, `packages/authorization`, `supabase/migrations` | Identität, gehashte Einladungen, emailgebundene Login-Einladungsabfrage, Mitgliedschaft, Ressourcenregister und Lesefreigaben mit RLS | Client-Service, sicherer Login-Dialog, Berechtigungsmetadaten und Autorisierung, keine Fachinhalte |
 | Client | `apps/client` | responsives Grundgerüst und Auth-geschützte Familienansicht | Navigation und Zusammensetzen der Module |
 | UI | `packages/ui` | gemeinsame Zustands- und Statuskomponenten | Präsentation, keine Fachregeln |
 | Verträge | `packages/contracts` | gemeinsame Zod-Verträge | IDs, Ressourcen, Freigaben und Datenformate |
@@ -25,3 +25,4 @@ Mitgliedsbasierte Eigentümerschaft, private/familienweite Sichtbarkeit und
 gezielte Lesefreigaben. Schreibrechte bleiben dem Eigentümer vorbehalten.
 Diese Beispiel-Policy ist kein Ersatz für PostgreSQL-RLS oder die noch offene
 Produktrollenmatrix.
+
