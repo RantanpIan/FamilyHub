@@ -1,3 +1,4 @@
+-- Applied to Familyhub_dev as migration 20261113100213.
 alter table public.family_invitations
   add column if not exists declined_at timestamptz,
   add column if not exists declined_by uuid references auth.users (id) on delete restrict;

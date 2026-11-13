@@ -273,7 +273,7 @@ erforderlich.
 - RLS-/Integrations- und E2E-Tests decken falsche E-Mail, Cross-Family,
   Doppelannahme, Ablehnung, Mehrfamilienkonto sowie 320/390-Pixel-Layout ab.
 
-**Migration:** `20261113100000_add_login_invitation_workflow.sql` ist additiv
+**Migration:** `20261113100213_add_login_invitation_workflow.sql` ist additiv
 und wird erst nach grünem CI, Review und ausdrücklicher Freigabe auf
 `Familyhub_dev` angewendet.
 
