@@ -49,6 +49,7 @@ Die Sammelbezeichnungen der Gruppen sind **keine** rekonstruierten Originaltitel
 | FH-CX-004 | Familienverwaltung | **Familienverwaltung und Familienmitglieder** | **Abgeschlossen** |
 | FH-CX-005 | Identity / Family / Access | **Ressourcenberechtigungen, Eigentümerschaft und private Inhalte** | **Implementiert; Abnahme gesondert nachweisen** |
 | FH-CX-006 | Identity / Family / Access | **Familieneinladungen, Mitgliedschaften und Rollenverwaltung** | **Lokal umgesetzt und validiert; Rollenänderungen nach FH-OPEN-001 gesperrt; GitHub Actions nicht bestätigt** |
+| FH-CX-006-FOLLOWUP | Identity / Family / Access | **Emailgebundener Einladungsdialog beim Login** | **In Umsetzung auf eigenem Feature-Branch; CI/Review offen** |
 | FH-CX-007 | Foundation | **Responsive AppShell und Navigation (vorläufiger Entwicklungsumfang)** | **In Umsetzung auf feature/fh-cx-007-responsive-appshell; Tests noch nicht bestätigt** |
 | FH-CX-008 | Kalender | Originalauftrag ergänzen | Nicht verifiziert |
 | FH-CX-009 | Kalender | Originalauftrag ergänzen | Nicht verifiziert |
@@ -245,3 +246,34 @@ Cloud-Projekt ohne explizite Freigabe. Anschließend Code-Review und PR.
 **Ausschlüsse:** Keine automatische Fusion vorhandener Familien, keine KI-/Schul-/Lernplanprojektionen, kein Rollenwechsel, keine Verwaltung fremder privater Ressourcen, keine Teilnehmermehrzahl, keine Änderung der Zielperson nach Erstellung und keine Serien oder Push.
 
 **Definition of Done:** CI Typecheck/Lint/Unit/Build, isolierte PostgreSQL-RLS-/Migrations-/Idempotenztests, Browser-E2E und manuelle Prüfung der beiden bestehenden Konten. Migration auf `Familyhub_dev` nach Review und Merge, niemals unkontrolliert.
+
+
+## FH-CX-006-FOLLOWUP – Emailgebundener Einladungsdialog beim Login (13.11.2026)
+
+**Status:** In Umsetzung auf `feature/family-invitations-login-modal`; Draft-PR,
+CI und Review offen. Keine Cloud-Daten geändert.
+
+**Ziel:** Ein bereits verifiziertes eingeladenes Konto sieht nach jedem neuen
+Login offene Einladungen automatisch in einem sicheren, mobilen Dialog. Eine
+separate Einladungsseite oder ein localhost-Link ist für die Bestätigung nicht
+erforderlich.
+
+**Akzeptanz:**
+
+- Der Server listet nur nicht abgelaufene Einladungen, deren normalisierte
+  `invited_email` zur bestätigten Auth-E-Mail des aktuellen Benutzers gehört.
+- Fremde IDs, fremde Familien, nicht bestätigte Konten, Tokenwerte und
+  Einladungsemails werden nicht offengelegt.
+- Der Dialog unterstützt bewusste Annahme, Ablehnung und „Später erinnern“;
+  mehrere Einladungen werden nacheinander angezeigt.
+- Annahme ist idempotent, verknüpft nur das eingeladene Profil und wählt die
+  angenommene Familie als aktiven Kontext. Bestehende Familien bleiben getrennt.
+- Wiederholte Anmeldungen zeigen nur weiterhin offene bzw. zurückgestellte
+  Einladungen. Eine Ablehnung bleibt als eigener Status gespeichert.
+- RLS-/Integrations- und E2E-Tests decken falsche E-Mail, Cross-Family,
+  Doppelannahme, Ablehnung, Mehrfamilienkonto sowie 320/390-Pixel-Layout ab.
+
+**Migration:** `20261113100000_add_login_invitation_workflow.sql` ist additiv
+und wird erst nach grünem CI, Review und ausdrücklicher Freigabe auf
+`Familyhub_dev` angewendet.
+
