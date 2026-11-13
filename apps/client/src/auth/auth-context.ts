@@ -23,6 +23,7 @@ export type AuthContextValue = {
   configured: boolean;
   configurationMessage: string | null;
   passwordRecovery: boolean;
+  sessionGeneration: number;
   signIn: (input: SignInInput) => Promise<void>;
   signUp: (input: SignUpInput) => Promise<"confirmation-required" | "signed-in">;
   signOut: () => Promise<void>;
@@ -34,3 +35,4 @@ export type AuthContextValue = {
 };
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
+
