@@ -55,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
+  const [sessionGeneration, setSessionGeneration] = useState(0);
   const [profileRetry, setProfileRetry] = useState(0);
   const authEventSeen = useRef(false);
   const activeUserId = useRef<string | null>(null);
@@ -82,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (event === "SIGNED_OUT") {
+        setSessionGeneration((value) => value + 1);
         setProfile(null);
         setProfileStatus(null);
         setProfileError(null);
@@ -89,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else if (event === "PASSWORD_RECOVERY") {
         setPasswordRecovery(true);
       } else if (event === "SIGNED_IN") {
+        setSessionGeneration((value) => value + 1);
         setPasswordRecovery(false);
       }
 
@@ -266,6 +269,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       configured,
       configurationMessage,
       passwordRecovery,
+      sessionGeneration,
       signIn,
       signUp,
       signOut,
@@ -286,6 +290,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       configured,
       configurationMessage,
       passwordRecovery,
+      sessionGeneration,
       signIn,
       signUp,
       signOut,
@@ -299,3 +304,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
+
