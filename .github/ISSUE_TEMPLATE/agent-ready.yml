@@ -1,0 +1,88 @@
+name: Agent-Auftrag (prüfbar)
+description: Einen kleinen, klar abgegrenzten Auftrag für die kontrollierte Codex-Ausführung vorbereiten.
+title: "[Agent] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Der Status `agent-ready` ist ein bewusster Startschalter. Erst nach menschlicher Prüfung darf das Label gesetzt werden.
+        Unvollständige, migrationspflichtige oder produktionsnahe Aufträge werden nicht automatisiert ausgeführt.
+
+  - type: input
+    id: order_id
+    attributes:
+      label: Auftrags-ID
+      description: Zum Beispiel FH-AUTO-001 oder eine bereits freigegebene Story-ID.
+      placeholder: FH-...
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Ziel
+      description: Was soll sich für Nutzer oder Betrieb nach dem Auftrag konkret ändern?
+      placeholder: Ein messbares Ergebnis in ein bis drei Sätzen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Umfang und Ausschlüsse
+      description: Betroffene Module, Dateien oder Schnittstellen sowie ausdrücklich nicht gewünschte Arbeiten.
+      placeholder: |
+        Im Umfang:
+        - ...
+
+        Außerhalb des Umfangs:
+        - ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Prüffähige Akzeptanzkriterien
+      description: Jedes Kriterium bitte als Given/When/Then oder mit einer eindeutig prüfbaren Bedingung formulieren.
+      placeholder: |
+        - Given ... When ... Then ...
+        - Given ... When ... Then ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: tests
+    attributes:
+      label: Testfälle
+      description: Positiv-, Negativ- und Grenzfälle; bestehende Testbefehle nennen.
+      placeholder: |
+        - Positiv: ...
+        - Negativ/Cross-Family: ...
+        - Befehl: npm run ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: database_scope
+    attributes:
+      label: Daten- und Migrationsumfang
+      description: Agent-ready darf nur den ersten, risikoarmen Umfang verwenden.
+      options:
+        - Keine Datenbank-, Cloud- oder Produktionsänderung
+        - Nur lokale, wegwerfbare Testausführung ohne Migration im Repository
+        - Schema-, Migrations-, Cloud- oder Produktionsänderung (nicht agent-ready)
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Sicherheitsbestätigung
+      options:
+        - label: Ich bestätige, dass der Auftrag keine Schlüssel, Tokens, Produktionsdaten oder personenbezogenen Testdaten benötigt.
+          required: true
+        - label: Ich bestätige, dass keine Produktions-, Cloud- oder Entwicklungsdatenbankänderung ohne separate Freigabe ausgeführt werden darf.
+          required: true
+        - label: Ich bestätige, dass main nicht direkt geändert wird, kein automatischer Merge erfolgt und ein Mensch den Draft-PR prüft.
+          required: true

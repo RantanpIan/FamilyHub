@@ -32,6 +32,7 @@
 | FH-DEC-023 | FH-CX-002 ist abgeschlossen; FH-CX-003 baut auf dem grünen CI-Stand `58a6fa1` auf | Nutzer-Screenshot des GitHub-Actions-Laufs | Testfundament bleibt erhalten; neue RLS-Integration wird separat geprüft |
 | FH-DEC-024 | FH-CX-004 verwendet einen transaktionalen, idempotenten `create_family`-RPC; spätere Mitgliedsänderungen laufen über RLS-geschützte Tabellenzugriffe | FH-CX-004-Anforderung für atomare Erstanlage und serverseitige Autorisierung | Kein Auth-Trigger oder Service-Role-Key im Client; Familienkontext bleibt eine nicht vertrauenswürdige Anfrage |
 | FH-DEC-025 | FH-CX-006 implementiert gehashte, sieben Tage gültige Erwachseneneinladungen und atomare Annahme; nur bestehende aktive Erwachsenenprofile sind einladbar | FH-CX-006-Auftrag; neue Rollen- und Kinderrechte bleiben gesperrt | E-Mail muss serverseitig bestätigt und passend sein; direkte Tabellenwrites bleiben gesperrt; Annahme erfordert explizite Bestätigung |
+| FH-DEC-026 | FH-AUTO-001 verwendet ein geprüftes `agent-ready`-Label als bewussten Auslöser, einen deterministischen Feature-Branch, höchstens drei Agentenversuche und ausschließlich einen Draft-PR als Übergabe | FH-AUTO-001-Auftrag; Stufe 2 | Kein direkter Main-Push, kein automatischer Merge, keine Cloud-/Produktions-/Entwicklungsdatenbankänderung ohne separate Freigabe; Secret und Branch-Protection bleiben manuell einzurichten |
 
 ## 2. Konkretisierte Regeln – keine neuen Baseline-Entscheidungen
 
@@ -100,3 +101,4 @@ Wenn eine Entscheidung notwendig wird:
 ## 5. Dokumentationshinweis
 
 Die Originalabschnitte der Phasen A und B sind bei diesem Export nicht in voller Länge verfügbar. Beschlossene Eckpunkte sind dokumentiert, aber die vollständige Original-Fachlogik, die SQL-Detailentwürfe und der Volltext jedes der 34 Entwicklungsaufträge müssen ergänzt bzw. abgeglichen werden. **Bis dahin gilt: neue Details weder rückwirkend als beschlossen ausgeben noch stillschweigend umsetzen.**
+

@@ -1,0 +1,370 @@
+name: Codex agent-ready
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fh-auto-001-issue-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Validate agent-ready issue
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'agent-ready' &&
+      github.event.issue.pull_request == null
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+    outputs:
+      approved: ${{ steps.guard.outputs.approved }}
+      issue_number: ${{ steps.guard.outputs.issue_number }}
+      branch: ${{ steps.guard.outputs.branch }}
+    steps:
+      - name: Check issuer, issue form and duplicate PRs
+        id: guard
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const issue = context.payload.issue;
+            const branch = `codex/agent-${issue.number}`;
+            const owner = context.repo.owner.toLowerCase();
+            const sender = (context.payload.sender?.login ?? '').toLowerCase();
+            const allowedAssociations = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
+            const body = issue.body ?? '';
+
+            const sectionValue = (heading) => {
+              const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const match = body.match(new RegExp(`### ${escaped}\\s*\\n([\\s\\S]*?)(?=\\n### |$)`, 'i'));
+              return (match?.[1] ?? '').replace(/<!--[\\s\\S]*?-->/g, '').trim();
+            };
+
+            const requiredSections = [
+              'Ziel',
+              'Umfang und Ausschlüsse',
+              'Prüffähige Akzeptanzkriterien',
+              'Testfälle',
+            ];
+            const missingSections = requiredSections.filter((heading) => !sectionValue(heading));
+            const requiredConfirmations = [
+              'Ich bestätige, dass der Auftrag keine Schlüssel',
+              'Ich bestätige, dass keine Produktions-, Cloud- oder Entwicklungsdatenbankänderung',
+              'Ich bestätige, dass main nicht direkt geändert wird',
+            ];
+            const missingConfirmations = requiredConfirmations.filter((text) => !body.includes(text));
+            const safeDatabaseScope =
+              body.includes('Keine Datenbank-, Cloud- oder Produktionsänderung') ||
+              body.includes('Nur lokale, wegwerfbare Testausführung ohne Migration im Repository');
+            const unsafeDatabaseScope = body.includes('Schema-, Migrations-, Cloud- oder Produktionsänderung');
+
+            const failClosed = (reason) => {
+              core.setOutput('approved', 'false');
+              core.setOutput('issue_number', String(issue.number));
+              core.setOutput('branch', branch);
+              core.warning(reason);
+            };
+
+            if (sender !== owner) {
+              failClosed(`agent-ready wird nur durch den Repository-Eigentümer ausgelöst (Auslöser: ${sender || 'unbekannt'}).`);
+              return;
+            }
+
+            if (!allowedAssociations.has(issue.author_association)) {
+              failClosed(`Issue-Autor ist nicht als OWNER, MEMBER oder COLLABORATOR zugeordnet: ${issue.author_association}.`);
+              return;
+            }
+
+            if (missingSections.length > 0 || missingConfirmations.length > 0 || !safeDatabaseScope || unsafeDatabaseScope) {
+              const details = [
+                missingSections.length ? `Fehlende Abschnitte: ${missingSections.join(', ')}` : '',
+                missingConfirmations.length ? 'Sicherheitsbestätigungen fehlen oder wurden nicht angekreuzt.' : '',
+                !safeDatabaseScope || unsafeDatabaseScope ? 'Datenbank-/Cloud-/Produktionsumfang ist nicht agent-ready.' : '',
+              ].filter(Boolean).join(' ');
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `FH-AUTO-001 blockiert: ${details} Bitte den Auftrag vervollständigen und nach erneuter Prüfung das Label agent-ready erneut setzen.`,
+              });
+              try {
+                await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, name: 'agent-ready' });
+              } catch (error) {
+                core.warning(`agent-ready konnte nicht entfernt werden: ${error.message}`);
+              }
+              failClosed(details);
+              return;
+            }
+
+            const openPrs = await github.paginate(github.rest.pulls.list, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              base: 'main',
+              head: `${context.repo.owner}:${branch}`,
+              per_page: 100,
+            });
+            if (openPrs.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `FH-AUTO-001: Es gibt bereits einen offenen PR für ${branch}; kein zweiter Lauf wurde gestartet.`,
+              });
+              try {
+                await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, name: 'agent-ready' });
+              } catch (error) {
+                core.warning(`agent-ready konnte nicht entfernt werden: ${error.message}`);
+              }
+              failClosed('Für den deterministischen Agenten-Branch existiert bereits ein offener PR.');
+              return;
+            }
+
+            core.setOutput('approved', 'true');
+            core.setOutput('issue_number', String(issue.number));
+            core.setOutput('branch', branch);
+            core.notice(`Auftrag ${issue.number} ist für FH-AUTO-001 freigegeben; Zielbranch: ${branch}.`);
+
+  key_check:
+    name: Check OpenAI secret
+    needs: guard
+    if: needs.guard.outputs.approved == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      issues: read
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      - name: Verify secret presence without printing it
+        id: check
+        shell: bash
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${OPENAI_API_KEY:-}" ]]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "OPENAI_API_KEY is configured."
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "OPENAI_API_KEY is not configured; the run will be marked blocked."
+          fi
+
+  attempt_1:
+    name: Codex attempt 1/3
+    needs: [guard, key_check]
+    if: needs.key_check.outputs.configured == 'true'
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: read
+    uses: ./.github/workflows/codex-agent-attempt.yml
+    with:
+      issue-number: ${{ needs.guard.outputs.issue_number }}
+      branch: ${{ needs.guard.outputs.branch }}
+      attempt: 1
+    secrets:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+  attempt_2:
+    name: Codex attempt 2/3
+    needs: [guard, key_check, attempt_1]
+    if: >-
+      always() &&
+      needs.key_check.outputs.configured == 'true' &&
+      needs.attempt_1.result == 'failure'
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: read
+    uses: ./.github/workflows/codex-agent-attempt.yml
+    with:
+      issue-number: ${{ needs.guard.outputs.issue_number }}
+      branch: ${{ needs.guard.outputs.branch }}
+      attempt: 2
+    secrets:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+  attempt_3:
+    name: Codex attempt 3/3
+    needs: [guard, key_check, attempt_1, attempt_2]
+    if: >-
+      always() &&
+      needs.key_check.outputs.configured == 'true' &&
+      needs.attempt_1.result == 'failure' &&
+      needs.attempt_2.result == 'failure'
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: read
+    uses: ./.github/workflows/codex-agent-attempt.yml
+    with:
+      issue-number: ${{ needs.guard.outputs.issue_number }}
+      branch: ${{ needs.guard.outputs.branch }}
+      attempt: 3
+    secrets:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+  finalize:
+    name: Create draft PR
+    needs: [guard, key_check, attempt_1, attempt_2, attempt_3]
+    if: >-
+      always() &&
+      needs.key_check.outputs.configured == 'true' &&
+      (needs.attempt_1.result == 'success' || needs.attempt_2.result == 'success' || needs.attempt_3.result == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Open or reuse draft PR
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const issue = context.payload.issue;
+            const branch = `codex/agent-${issue.number}`;
+            const prs = await github.paginate(github.rest.pulls.list, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              base: 'main',
+              head: `${context.repo.owner}:${branch}`,
+              per_page: 100,
+            });
+            let pr = prs[0];
+            if (!pr) {
+              pr = (await github.rest.pulls.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                head: branch,
+                base: 'main',
+                title: `FH-AUTO-001: ${issue.title}`,
+                body: [
+                  `Automatisch erzeugter Draft-PR für Issue #${issue.number}.`,
+                  '',
+                  `- Feature-Branch: ${branch}`,
+                  '- Maximal drei sequenzielle Agentenversuche; kein automatischer Merge.',
+                  '- Supabase-Start, Migrationen und Produktions-/Cloud-Änderungen wurden im Agentenlauf nicht ausgeführt.',
+                  '- Bestehende CI, Branch-Protection und menschliche Review bleiben verbindlich.',
+                  '',
+                  `Issue: #${issue.number}`,
+                ].join('\\n'),
+                draft: true,
+                maintainer_can_modify: false,
+              })).data;
+            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: `FH-AUTO-001 erfolgreich übergeben: Draft-PR #${pr.number} auf ${branch}. Bitte CI, Diff, Akzeptanzkriterien und Branch-Regeln manuell prüfen; kein automatischer Merge.`,
+            });
+            try {
+              await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, name: 'agent-ready' });
+            } catch (error) {
+              core.warning(`agent-ready konnte nach Draft-PR nicht entfernt werden: ${error.message}`);
+            }
+
+  blocked_no_key:
+    name: Block without API key
+    needs: [guard, key_check]
+    if: >-
+      always() &&
+      needs.guard.outputs.approved == 'true' &&
+      needs.key_check.result == 'success' &&
+      needs.key_check.outputs.configured != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Mark issue blocked
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const issue = context.payload.issue;
+            const addBlockedLabel = async () => {
+              try {
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: 'agent-blocked',
+                  color: 'b60205',
+                  description: 'FH-AUTO-001 benötigt manuelle Klärung',
+                });
+              } catch (error) {
+                if (error.status !== 422) throw error;
+              }
+              await github.rest.issues.addLabels({ owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, labels: ['agent-blocked'] });
+            };
+            await addBlockedLabel();
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: 'FH-AUTO-001 BLOCKED: Das Repository-Secret `OPENAI_API_KEY` ist nicht eingerichtet. Secret manuell hinterlegen, Auftrag erneut prüfen und `agent-ready` danach bewusst erneut setzen.',
+            });
+            try {
+              await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, name: 'agent-ready' });
+            } catch (error) {
+              core.warning(`agent-ready konnte nicht entfernt werden: ${error.message}`);
+            }
+
+  blocked_after_three_attempts:
+    name: Block after three attempts
+    needs: [guard, key_check, attempt_1, attempt_2, attempt_3]
+    if: >-
+      always() &&
+      needs.key_check.outputs.configured == 'true' &&
+      needs.attempt_1.result == 'failure' &&
+      needs.attempt_2.result == 'failure' &&
+      needs.attempt_3.result == 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Mark issue blocked after maximum attempts
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const issue = context.payload.issue;
+            const branch = `codex/agent-${issue.number}`;
+            try {
+              await github.rest.issues.createLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: 'agent-blocked',
+                color: 'b60205',
+                description: 'FH-AUTO-001 benötigt manuelle Klärung',
+              });
+            } catch (error) {
+              if (error.status !== 422) throw error;
+            }
+            await github.rest.issues.addLabels({ owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, labels: ['agent-blocked'] });
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: `FH-AUTO-001 BLOCKED: Drei kontrollierte Versuche sind fehlgeschlagen. Der Branch ${branch} bleibt zur manuellen Diagnose erhalten. Prüfe den Workflow-Lauf ${context.runId}, die Artefakte, den Diff und die CI-Fehler; danach Auftrag korrigieren und agent-ready bewusst erneut setzen. Es wurde kein Merge und keine Datenbank-/Cloud-Änderung ausgeführt.`,
+            });
+            try {
+              await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, name: 'agent-ready' });
+            } catch (error) {
+              core.warning(`agent-ready konnte nach Blockierung nicht entfernt werden: ${error.message}`);
+            }
