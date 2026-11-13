@@ -94,6 +94,7 @@ export const FamilyMembershipStatusSchema = z.enum(["active", "pending", "revoke
 export const FamilyInvitationStatusSchema = z.enum([
   "pending",
   "accepted",
+  "declined",
   "revoked",
   "expired",
 ]);
@@ -129,6 +130,22 @@ export const FamilyInvitationPreviewSchema = z.object({
   expires_at: z.iso.datetime({ offset: true }),
 }).strict();
 
+export const FamilyPendingInvitationSchema = z.object({
+  invitation_id: z.uuid(),
+  family_id: FamilyIdSchema,
+  family_name: FamilyNameSchema,
+  target_member_id: FamilyMemberIdSchema,
+  target_member_name: z.string().min(1).max(80),
+  role: FamilyRoleSchema,
+  expires_at: z.iso.datetime({ offset: true }),
+}).strict();
+
+export const FamilyInvitationDecisionSchema = z.enum([
+  "accepted",
+  "declined",
+  "remind_later",
+]);
+
 export type FamilyRole = z.infer<typeof FamilyRoleSchema>;
 export type FamilyMemberType = z.infer<typeof FamilyMemberTypeSchema>;
 export type CreateFamilyInput = z.infer<typeof CreateFamilyInputSchema>;
@@ -140,6 +157,8 @@ export type FamilyMembershipSummary = z.infer<typeof FamilyMembershipSummarySche
 export type FamilyInvitation = z.infer<typeof FamilyInvitationSchema>;
 export type CreateFamilyInvitationInput = z.infer<typeof CreateFamilyInvitationInputSchema>;
 export type FamilyInvitationPreview = z.infer<typeof FamilyInvitationPreviewSchema>;
+export type FamilyPendingInvitation = z.infer<typeof FamilyPendingInvitationSchema>;
+export type FamilyInvitationDecision = z.infer<typeof FamilyInvitationDecisionSchema>;
 
 export const ResourceIdSchema = z.uuid().brand<"ResourceId">();
 export const ResourceGrantIdSchema = z.uuid().brand<"ResourceGrantId">();
@@ -253,3 +272,4 @@ export const NotificationRecipientSelectionSchema = z.discriminatedUnion("kind",
 export type NotificationRecipientSelection = z.infer<
   typeof NotificationRecipientSelectionSchema
 >;
+

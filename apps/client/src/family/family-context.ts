@@ -3,8 +3,10 @@ import type {
   CreateFamilyInvitationInput,
   CreateManagedMemberInput,
   FamilyInvitation,
+  FamilyInvitationDecision,
   FamilyMember,
   FamilyMembershipSummary,
+  FamilyPendingInvitation,
   FamilySummary,
   UpdateManagedMemberInput,
 } from "@familyhub/contracts";
@@ -17,6 +19,8 @@ export type FamilyContextValue = {
   members: FamilyMember[];
   memberships: FamilyMembershipSummary[];
   invitations: FamilyInvitation[];
+  pendingInvitations: FamilyPendingInvitation[];
+  pendingInvitationsError: string | null;
   status: FamilyLoadStatus;
   membersStatus: FamilyLoadStatus;
   error: string | null;
@@ -34,6 +38,12 @@ export type FamilyContextValue = {
   revokeInvitation: (invitationId: string) => Promise<void>;
   deactivateMembership: (membershipId: string) => Promise<void>;
   acceptInvitation: (token: string) => Promise<void>;
+  refreshPendingInvitations: () => Promise<void>;
+  respondToInvitation: (
+    invitationId: string,
+    decision: FamilyInvitationDecision,
+  ) => Promise<void>;
 };
 
 export const FamilyContext = createContext<FamilyContextValue | null>(null);
+

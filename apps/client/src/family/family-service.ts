@@ -4,6 +4,8 @@ import {
   CreateFamilyInputSchema,
   CreateManagedMemberInputSchema,
   FamilyInvitationPreviewSchema,
+  FamilyPendingInvitationSchema,
+  FamilyInvitationDecisionSchema,
   FamilyInvitationSchema,
   FamilyMemberSchema,
   FamilyMembershipSummarySchema,
@@ -14,6 +16,8 @@ import {
   type CreateManagedMemberInput,
   type FamilyInvitation,
   type FamilyInvitationPreview,
+  type FamilyPendingInvitation,
+  type FamilyInvitationDecision,
   type FamilyMember,
   type FamilyMembershipSummary,
   type FamilySummary,
@@ -194,6 +198,44 @@ export async function previewFamilyInvitation(
   return preview;
 }
 
+export async function listMyPendingFamilyInvitations(): Promise<FamilyPendingInvitation[]> {
+  const { data, error } = await requireClient().rpc(
+    "list_my_pending_family_invitations",
+  );
+  if (error) {
+    throw error;
+  }
+  return z.array(FamilyPendingInvitationSchema).parse(data);
+}
+
+export async function respondToFamilyInvitation(
+  invitationId: string,
+  decision: FamilyInvitationDecision,
+): Promise<{ familyId: string | null; decision: FamilyInvitationDecision }> {
+  const parsedDecision = FamilyInvitationDecisionSchema.parse(decision);
+  const { data, error } = await requireClient().rpc(
+    "respond_to_family_invitation",
+    {
+      p_invitation_id: invitationId,
+      p_decision: parsedDecision,
+    },
+  );
+  if (error) {
+    throw error;
+  }
+  const result = z.array(z.object({
+    family_id: z.uuid().nullable(),
+    decision: FamilyInvitationDecisionSchema,
+  }).strict()).parse(data)[0];
+  if (!result) {
+    throw new Error("Die Einladung konnte nicht verarbeitet werden.");
+  }
+  return {
+    familyId: result.family_id,
+    decision: result.decision,
+  };
+}
+
 export async function acceptFamilyInvitation(token: string): Promise<string> {
   const { data, error } = await requireClient().rpc("accept_family_invitation", {
     p_token: token,
@@ -225,3 +267,4 @@ export async function deactivateFamilyMembership(membershipId: string): Promise<
     throw error;
   }
 }
+

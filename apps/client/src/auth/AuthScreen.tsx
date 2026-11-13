@@ -17,11 +17,9 @@ type AuthMode = "sign-in" | "sign-up" | "reset" | "confirm" | "recovery";
 export function AuthScreen({
   initialMode = "sign-in",
   onNavigate,
-  returnToInvite = false,
 }: {
   initialMode?: AuthMode;
-  onNavigate: (path: "/auth" | "/app" | "/invite") => void;
-  returnToInvite?: boolean;
+  onNavigate: (path: "/auth" | "/app" | "/profile") => void;
 }) {
   const auth = useAuth();
   const [mode, setMode] = useState<AuthMode>(initialMode);
@@ -54,7 +52,7 @@ export function AuthScreen({
           throw new Error("Bitte gib eine gültige E-Mail-Adresse und dein Passwort ein.");
         }
         await auth.signIn(parsed.data);
-        onNavigate(returnToInvite ? "/invite" : "/app");
+        onNavigate("/app");
       } else if (mode === "sign-up") {
         const parsed = SignUpInputSchema.safeParse({
           displayName: form.get("displayName"),
@@ -70,7 +68,7 @@ export function AuthScreen({
           setMode("confirm");
           setNotice("Wenn die Adresse verwendet werden kann, erhältst du eine E-Mail mit dem Bestätigungslink.");
         } else {
-          onNavigate(returnToInvite ? "/invite" : "/app");
+          onNavigate("/app");
         }
       } else if (mode === "reset") {
         const parsed = PasswordResetRequestSchema.safeParse({
@@ -270,3 +268,4 @@ export function AuthScreen({
     </main>
   );
 }
+

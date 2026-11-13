@@ -277,14 +277,10 @@ test.describe("family onboarding with a disposable Supabase backend", () => {
           });
           await page.getByLabel("E-Mail-Adresse").fill(inviteeEmail);
           await page.getByRole("button", { name: "Einladung erstellen" }).click();
-          await expect(page.getByRole("button", { name: "Einladungslink kopieren" })).toBeVisible();
-          await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
-          await page.getByRole("button", { name: "Einladungslink kopieren" }).click();
-          const invitationLink = await page.evaluate(() => navigator.clipboard.readText());
-          expect(invitationLink).toMatch(/\/invite#token=[A-Za-z0-9_-]{43}$/);
+          await expect(page.getByText(/sicher als Dialog/)).toBeVisible();
 
           const inviteePage = await inviteeContext.newPage();
-          await inviteePage.goto(invitationLink);
+          await inviteePage.goto("/auth");
           await inviteePage.getByRole("button", { name: "Registrieren" }).click();
           await inviteePage.getByLabel("Anzeigename").fill("Synthetic invited adult");
           await inviteePage.getByLabel("E-Mail-Adresse").fill(inviteeEmail);
@@ -295,9 +291,11 @@ test.describe("family onboarding with a disposable Supabase backend", () => {
           const confirmationLink = await readConfirmationLink(inviteeEmail);
           await inviteePage.goto(confirmationLink);
           await expect(
-            inviteePage.getByText(/Synthetic invited profile.*Synthetic invitation E2E family/),
+            inviteePage.getByRole("dialog").getByText(
+              /Synthetic invited profile.*Synthetic invitation E2E family/,
+            ),
           ).toBeVisible();
-          await inviteePage.getByRole("button", { name: "Familieneinladung annehmen" }).click();
+          await inviteePage.getByRole("dialog").getByRole("button", { name: "Einladung annehmen" }).click();
           await expect(inviteePage.getByTestId("app-shell")).toBeVisible();
           await inviteePage.getByRole("button", { name: "Mehr" }).click();
           const invitedMember = inviteePage.locator(".family-member-card").filter({
@@ -389,3 +387,4 @@ test.describe("family onboarding with a disposable Supabase backend", () => {
       return link;
     }
 });
+

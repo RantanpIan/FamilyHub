@@ -6,6 +6,8 @@ import {
   CreateResourceInputSchema,
   FamilyMemberSchema,
   FamilyInvitationPreviewSchema,
+  FamilyPendingInvitationSchema,
+  FamilyInvitationDecisionSchema,
   FamilySummarySchema,
   FamilyIdSchema,
   FamilyMemberIdSchema,
@@ -109,6 +111,18 @@ describe("shared Zod contracts", () => {
         expires_at: "2026-10-30T08:00:00.000Z",
       }).success,
     ).toBe(true);
+    expect(
+      FamilyPendingInvitationSchema.safeParse({
+        invitation_id: "00000000-0000-4000-8000-000000000010",
+        family_id: "d1169748-1b21-4b9f-a35a-ec07a7d58b0e",
+        family_name: "Synthetic family",
+        target_member_id: targetMemberId,
+        target_member_name: "Synthetic adult",
+        role: "adult",
+        expires_at: "2026-11-20T12:00:00.000Z",
+      }).success,
+    ).toBe(true);
+    expect(FamilyInvitationDecisionSchema.safeParse("remind_later").success).toBe(true);
   });
 
   it("accepts deterministic family, member, and user UUIDs", () => {
@@ -252,3 +266,4 @@ describe("shared Zod contracts", () => {
     expect(NotificationRecipientSelectionSchema.safeParse(value).success).toBe(false);
   });
 });
+

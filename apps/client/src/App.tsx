@@ -15,7 +15,7 @@ import { getCallbackFlow } from "./auth/auth-utils";
 import { ProfileScreen } from "./auth/ProfileScreen";
 import { FamilyOnboarding } from "./family/FamilyOnboarding";
 import { FamilyManagement } from "./family/FamilyManagement";
-import { FamilyInvitationAcceptance } from "./family/FamilyInvitationAcceptance";
+import { FamilyInvitationModal } from "./family/FamilyInvitationModal";
 import { useFamily } from "./family/useFamily";
 import { CalendarPage } from "./calendar/CalendarPage";
 
@@ -150,27 +150,13 @@ function PageContent({ page }: { page: PageId }) {
   );
 }
 
-const invitationStorageKey = "familyhub.pending-invitation";
-
-type AppRoute = "/auth" | "/app" | "/profile" | "/invite";
-
-function getPendingInvitationToken(): string | null {
-  const urlToken = new URLSearchParams(window.location.hash.slice(1)).get("token");
-  if (urlToken && /^[A-Za-z0-9_-]{43}$/.test(urlToken)) {
-    return urlToken;
-  }
-  const storedToken = window.sessionStorage.getItem(invitationStorageKey);
-  return storedToken && /^[A-Za-z0-9_-]{43}$/.test(storedToken)
-    ? storedToken
-    : null;
-}
+type AppRoute = "/auth" | "/app" | "/profile";
 
 function currentRoute(): AppRoute {
   if (
     window.location.pathname === "/auth" ||
     window.location.pathname === "/app" ||
-    window.location.pathname === "/profile" ||
-    window.location.pathname === "/invite"
+    window.location.pathname === "/profile"
   ) {
     return window.location.pathname;
   }
@@ -181,9 +167,8 @@ export default function App() {
   const auth = useAuth();
   const family = useFamily();
   const [route, setRoute] = useState<AppRoute>(currentRoute);
-  const [pendingInvitationToken, setPendingInvitationToken] = useState<string | null>(
-    getPendingInvitationToken,
-  );
+  const [invitationDialogDismissedForSession, setInvitationDialogDismissedForSession] =
+    useState<number | null>(null);
   const [profileRetrying, setProfileRetrying] = useState(false);
   const callbackFlow = getCallbackFlow(window.location.search);
 
@@ -203,26 +188,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const token = new URLSearchParams(window.location.hash.slice(1)).get("token");
-    if (token && /^[A-Za-z0-9_-]{43}$/.test(token)) {
-      window.sessionStorage.setItem(invitationStorageKey, token);
-      window.history.replaceState(null, "", "/invite");
-    }
-  }, []);
-
-  useEffect(() => {
     if (auth.status !== "ready" && auth.status !== "unconfigured") {
       return;
     }
-    if (
-      auth.user &&
-      pendingInvitationToken &&
-      route !== "/invite" &&
-      callbackFlow !== "password-recovery" &&
-      !auth.passwordRecovery
-    ) {
-      window.location.replace("/invite");
-    } else if (!auth.user && route !== "/auth" && route !== "/invite") {
+    if (!auth.user && route !== "/auth") {
       window.history.replaceState(null, "", "/auth");
     } else if (
       auth.user &&
@@ -238,7 +207,6 @@ export default function App() {
     auth.passwordRecovery,
     callbackFlow,
     route,
-    pendingInvitationToken,
   ]);
 
   if (auth.status === "loading") {
@@ -254,7 +222,6 @@ export default function App() {
       <AuthScreen
         initialMode={callbackFlow === "password-recovery" ? "recovery" : "sign-in"}
         onNavigate={navigate}
-        returnToInvite={route === "/invite"}
       />
     );
   }
@@ -295,28 +262,6 @@ export default function App() {
     return <AuthScreen initialMode="recovery" onNavigate={navigate} />;
   }
 
-  if (route === "/invite") {
-    return (
-      <FamilyInvitationAcceptance
-        token={pendingInvitationToken}
-        onAccepted={() => {
-          window.sessionStorage.removeItem(invitationStorageKey);
-          setPendingInvitationToken(null);
-          navigate("/app", true);
-        }}
-        onCancel={() => {
-          window.sessionStorage.removeItem(invitationStorageKey);
-          setPendingInvitationToken(null);
-          navigate("/app", true);
-        }}
-        onSwitchAccount={async () => {
-          await auth.signOut();
-          navigate("/invite", true);
-        }}
-      />
-    );
-  }
-
   if (route === "/profile") {
     return <ProfileScreen onBack={() => navigate("/app")} />;
   }
@@ -350,10 +295,59 @@ export default function App() {
   }
 
   if (family.families.length === 0) {
-    return <FamilyOnboarding />;
+    return (
+      <>
+        <FamilyOnboarding />
+        <InvitationDialog
+          family={family}
+          sessionGeneration={auth.sessionGeneration}
+          dismissedSessionGeneration={invitationDialogDismissedForSession}
+          onDismiss={setInvitationDialogDismissedForSession}
+        />
+      </>
+    );
   }
 
-  return <AuthenticatedApp onProfile={() => navigate("/profile")} />;
+  return (
+    <>
+      <AuthenticatedApp onProfile={() => navigate("/profile")} />
+      <InvitationDialog
+        family={family}
+        sessionGeneration={auth.sessionGeneration}
+        dismissedSessionGeneration={invitationDialogDismissedForSession}
+        onDismiss={setInvitationDialogDismissedForSession}
+      />
+    </>
+  );
+}
+
+function InvitationDialog({
+  family,
+  sessionGeneration,
+  dismissedSessionGeneration,
+  onDismiss,
+}: {
+  family: ReturnType<typeof useFamily>;
+  sessionGeneration: number;
+  dismissedSessionGeneration: number | null;
+  onDismiss: (sessionGeneration: number) => void;
+}) {
+  if (
+    family.pendingInvitations.length === 0 ||
+    family.pendingInvitationsError ||
+    dismissedSessionGeneration === sessionGeneration
+  ) {
+    return null;
+  }
+  return (
+    <FamilyInvitationModal
+      invitations={family.pendingInvitations}
+      onRespond={async (invitationId, decision) => {
+        await family.respondToInvitation(invitationId, decision);
+      }}
+      onRemindLater={() => onDismiss(sessionGeneration)}
+    />
+  );
 }
 
 function AuthenticatedApp({ onProfile }: { onProfile: () => void }) {
@@ -481,3 +475,4 @@ function Navigation({
     </nav>
   );
 }
+

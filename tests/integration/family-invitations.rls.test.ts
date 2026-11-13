@@ -256,6 +256,67 @@ describe("family invitation and membership PostgreSQL RLS", () => {
     expect(familyBMembers).toBeNull();
   });
 
+  it("INV-T21, T22, T23: lists only confirmed-email invitations and accepts by id idempotently", async () => {
+    const targetMemberId = await createAdultMember(clientAdmin, "Synthetic login-modal target");
+    const created = await createInvitation(targetMemberId);
+
+    const pending = await clientInvitee.rpc("list_my_pending_family_invitations");
+    expect(pending.error).toBeNull();
+    expect(pending.data?.some((entry) =>
+      entry.invitation_id === created.invitation_id &&
+      entry.family_id === familyAId &&
+      entry.target_member_name === "Synthetic login-modal target",
+    )).toBe(true);
+    expect(Object.keys(pending.data?.find(
+      (entry) => entry.invitation_id === created.invitation_id,
+    ) ?? {})).not.toEqual(expect.arrayContaining(["invited_email", "invitation_token"]));
+
+    const foreignPending = await clientOtherAdult.rpc("list_my_pending_family_invitations");
+    expect(foreignPending.error).toBeNull();
+    expect(foreignPending.data?.some((entry) => entry.invitation_id === created.invitation_id)).toBe(false);
+
+    const deferred = await clientInvitee.rpc("respond_to_family_invitation", {
+      p_invitation_id: created.invitation_id,
+      p_decision: "remind_later",
+    });
+    expect(deferred.error).toBeNull();
+    expect(deferred.data).toEqual([{ family_id: null, decision: "remind_later" }]);
+
+    const accepted = await clientInvitee.rpc("respond_to_family_invitation", {
+      p_invitation_id: created.invitation_id,
+      p_decision: "accepted",
+    });
+    const retried = await clientInvitee.rpc("respond_to_family_invitation", {
+      p_invitation_id: created.invitation_id,
+      p_decision: "accepted",
+    });
+    expect(accepted.error).toBeNull();
+    expect(retried.error).toBeNull();
+    expect(accepted.data).toEqual([{ family_id: familyAId, decision: "accepted" }]);
+    expect(retried.data).toEqual([{ family_id: familyAId, decision: "accepted" }]);
+  });
+
+  it("INV-T24: allows explicit decline without changing membership or leaking another family", async () => {
+    const targetMemberId = await createAdultMember(clientAdmin, "Synthetic declined target");
+    const created = await createInvitation(targetMemberId);
+    const declined = await clientInvitee.rpc("respond_to_family_invitation", {
+      p_invitation_id: created.invitation_id,
+      p_decision: "declined",
+    });
+    expect(declined.error).toBeNull();
+    expect(declined.data).toEqual([{ family_id: familyAId, decision: "declined" }]);
+
+    const pending = await clientInvitee.rpc("list_my_pending_family_invitations");
+    expect(pending.error).toBeNull();
+    expect(pending.data?.some((entry) => entry.invitation_id === created.invitation_id)).toBe(false);
+    const { data: membership } = await adminClient
+      .from("family_memberships")
+      .select("id")
+      .eq("member_id", targetMemberId)
+      .eq("status", "active");
+    expect(membership).toEqual([]);
+  });
+
   it("INV-T08: rejects preview and acceptance for a different verified email", async () => {
     const targetMemberId = await createAdultMember(clientAdmin, "Synthetic email-bound target");
     const created = await createInvitation(targetMemberId);
@@ -463,3 +524,4 @@ describe("family invitation and membership PostgreSQL RLS", () => {
     expect(ownerRead.data).toBeNull();
   });
 });
+
