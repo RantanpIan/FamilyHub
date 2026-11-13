@@ -131,13 +131,15 @@ export type Database = {
           invited_email: string;
           role: "adult";
           token_hash: string;
-          status: "pending" | "accepted" | "revoked" | "expired";
+          status: "pending" | "accepted" | "declined" | "revoked" | "expired";
           invited_by: string;
           created_at: string;
           expires_at: string;
           accepted_at: string | null;
           accepted_by: string | null;
           revoked_at: string | null;
+          declined_at: string | null;
+          declined_by: string | null;
         };
         Insert: {
           id?: string;
@@ -146,19 +148,23 @@ export type Database = {
           invited_email: string;
           role?: "adult";
           token_hash: string;
-          status?: "pending" | "accepted" | "revoked" | "expired";
+          status?: "pending" | "accepted" | "declined" | "revoked" | "expired";
           invited_by: string;
           expires_at: string;
           accepted_at?: string | null;
           accepted_by?: string | null;
           revoked_at?: string | null;
+          declined_at?: string | null;
+          declined_by?: string | null;
         };
         Update: {
-          status?: "pending" | "accepted" | "revoked" | "expired";
+          status?: "pending" | "accepted" | "declined" | "revoked" | "expired";
           expires_at?: string;
           accepted_at?: string | null;
           accepted_by?: string | null;
           revoked_at?: string | null;
+          declined_at?: string | null;
+          declined_by?: string | null;
         };
         Relationships: [
           {
@@ -475,6 +481,22 @@ export type Database = {
         Args: { p_token: string };
         Returns: { family_id: string }[];
       };
+      list_my_pending_family_invitations: {
+        Args: Record<string, never>;
+        Returns: {
+          invitation_id: string;
+          family_id: string;
+          family_name: string;
+          target_member_id: string;
+          target_member_name: string;
+          role: string;
+          expires_at: string;
+        }[];
+      };
+      respond_to_family_invitation: {
+        Args: { p_invitation_id: string; p_decision: string };
+        Returns: { family_id: string | null; decision: string }[];
+      };
       revoke_family_invitation: {
         Args: { p_invitation_id: string };
         Returns: undefined;
@@ -524,3 +546,4 @@ export type Database = {
     CompositeTypes: { [_ in never]: never };
   };
 };
+
