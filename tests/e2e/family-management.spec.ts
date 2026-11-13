@@ -52,6 +52,33 @@ async function withConfirmedUser(
   }
 }
 
+async function createAdditionalFamily(
+  user: Awaited<ReturnType<typeof createConfirmedUser>>,
+  name: string,
+) {
+  if (!supabaseUrl || !anonKey) {
+    throw new Error("Supabase E2E requires a disposable authenticated client.");
+  }
+  const client = createClient<Database, "public">(supabaseUrl, anonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const { error: signInError } = await client.auth.signInWithPassword({
+    email: user.email,
+    password: user.password,
+  });
+  if (signInError) {
+    throw signInError;
+  }
+  const { data, error } = await client.rpc("create_family", {
+    p_name: name,
+    p_request_id: randomUUID(),
+  });
+  if (error || !data?.[0]) {
+    throw error ?? new Error("Supabase did not create the second synthetic family.");
+  }
+  return data[0];
+}
+
 test.describe("family onboarding with a disposable Supabase backend", () => {
   test.skip(
     !canRunAgainstSupabase,
@@ -88,6 +115,10 @@ test.describe("family onboarding with a disposable Supabase backend", () => {
       await page.getByRole("button", { name: "Familie erstellen" }).click();
       await expect(page.getByTestId("app-shell")).toBeVisible();
 
+      const secondFamily = await createAdditionalFamily(user, "Synthetic second family");
+      await page.reload();
+      await expect(page.getByTestId("app-shell")).toBeVisible();
+
       for (const width of [1280, 768, 390, 320]) {
         await page.setViewportSize({ width, height: 800 });
         const mobile = width <= 680;
@@ -104,14 +135,24 @@ test.describe("family onboarding with a disposable Supabase backend", () => {
         expect(hasHorizontalOverflow, `horizontal overflow at ${width}px`).toBe(false);
       }
 
+      const activeFamily = page.getByLabel("Aktive Familie").first();
+      await activeFamily.selectOption(secondFamily.family_id);
+      await expect(activeFamily).toHaveValue(secondFamily.family_id);
+
       await page.getByRole("navigation", { name: "Mobile Hauptnavigation" })
         .getByRole("button", { name: "Mehr" }).click();
-      await expect(page.getByRole("heading", { name: "Synthetic responsive family" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Synthetic second family" })).toBeVisible();
+
+      await page.getByRole("navigation", { name: "Mobile Hauptnavigation" })
+        .getByRole("button", { name: "Heute" }).click();
+      await activeFamily.selectOption({ label: "Synthetic responsive family" });
+      await expect(activeFamily).not.toHaveValue(secondFamily.family_id);
 
       await page.setViewportSize({ width: 1280, height: 800 });
       await page.getByRole("button", { name: "Zur Startseite" }).click();
       await expect(page.getByRole("heading", { name: /Alles im Blick/ })).toBeVisible();
       await expect(page.getByTestId("app-shell")).toBeVisible();
+      await expect(page.getByLabel("Aktive Familie").first()).not.toHaveValue(secondFamily.family_id);
     });
   });
 
