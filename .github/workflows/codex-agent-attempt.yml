@@ -1,0 +1,191 @@
+name: Codex agent attempt
+
+on:
+  workflow_call:
+    inputs:
+      issue-number:
+        required: true
+        type: number
+      branch:
+        required: true
+        type: string
+      attempt:
+        required: true
+        type: number
+    secrets:
+      OPENAI_API_KEY:
+        required: true
+
+permissions:
+  contents: write
+  issues: read
+  pull-requests: read
+
+jobs:
+  run:
+    name: Execute and validate attempt ${{ inputs.attempt }}/3
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ISSUE_NUMBER: ${{ inputs.issue-number }}
+      AGENT_BRANCH: ${{ inputs.branch }}
+      ATTEMPT: ${{ inputs.attempt }}
+    steps:
+      - name: Check out main without retaining credentials
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prepare deterministic feature branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git ls-remote --exit-code --heads "$remote" "refs/heads/${AGENT_BRANCH}" >/dev/null 2>&1; then
+            git fetch --no-tags "$remote" "refs/heads/${AGENT_BRANCH}:refs/remotes/agent/${AGENT_BRANCH}"
+            git switch -C "$AGENT_BRANCH" "refs/remotes/agent/${AGENT_BRANCH}"
+          else
+            git switch -c "$AGENT_BRANCH"
+          fi
+          git fetch --no-tags origin main:refs/remotes/origin/main
+
+      - name: Install locked dependencies before the agent
+        run: npm ci
+
+      - name: Build untrusted runtime prompt
+        shell: bash
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const template = fs.readFileSync('.github/codex/prompts/implement-issue.md', 'utf8');
+          const replacements = {
+            '{{ISSUE_NUMBER}}': process.env.ISSUE_NUMBER ?? '',
+            '{{ISSUE_TITLE}}': process.env.ISSUE_TITLE ?? '',
+            '{{ISSUE_BODY}}': process.env.ISSUE_BODY ?? '',
+          };
+          const prompt = Object.entries(replacements).reduce(
+            (value, [marker, replacement]) => value.split(marker).join(replacement),
+            template,
+          );
+          fs.writeFileSync('.github/codex/runtime-prompt.md', prompt, 'utf8');
+          NODE
+
+      - name: Run Codex in the checked-out feature branch
+        id: codex
+        continue-on-error: true
+        uses: openai/codex-action@13e9c17417b29e9a276f73ec6ed7fb574137d3c3
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: .github/codex/runtime-prompt.md
+          output-file: .github/codex/codex-final-message.txt
+          permission-profile: ":workspace"
+          safety-strategy: drop-sudo
+          allow-users: RantanpIan
+          effort: low
+          codex-args: '["--ephemeral"]'
+
+      - name: Remove runtime prompt and validate protected paths
+        id: verify
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          report="validation-report.md"
+          failed=0
+          {
+            echo "# FH-AUTO-001 Validierung"
+            echo
+            echo "- Issue: #${ISSUE_NUMBER}"
+            echo "- Versuch: ${ATTEMPT}/3"
+            echo "- Branch: ${AGENT_BRANCH}"
+            echo
+          } > "$report"
+
+          rm -f .github/codex/runtime-prompt.md .github/codex/codex-final-message.txt
+          changed_files="$( { git diff --name-only origin/main...HEAD; git diff --name-only; git ls-files --others --exclude-standard; } | sort -u )"
+          if [[ -z "$changed_files" ]]; then
+            echo "- Ergebnis: FEHLER – keine Änderung erzeugt." >> "$report"
+            failed=1
+          fi
+
+          protected_files="$(printf '%s\n' "$changed_files" | grep -E '^(\.github/workflows/|\.github/ISSUE_TEMPLATE/|\.github/codex/|supabase/migrations/|supabase/config\.toml$|AGENTS\.md$|01-fachkonzept\.md$|02-architektur\.md$|04-entscheidungen\.md$|.*\.env($|\.)|.*\.(pem|key)$|package-lock\.json$)' || true)"
+          if [[ -n "$protected_files" ]]; then
+            echo "- Ergebnis: FEHLER – geschützte Dateien geändert:" >> "$report"
+            printf '  - `%s`\n' $protected_files >> "$report"
+            failed=1
+          fi
+
+          if ! git diff --check >> "$report" 2>&1; then
+            echo "- Ergebnis: FEHLER – Whitespace-/Patch-Prüfung fehlgeschlagen." >> "$report"
+            failed=1
+          fi
+
+          run_check() {
+            local label="$1"
+            shift
+            echo "## ${label}" >> "$report"
+            if "$@" >> "$report" 2>&1; then
+              echo "Ergebnis: bestanden" >> "$report"
+            else
+              echo "Ergebnis: fehlgeschlagen" >> "$report"
+              failed=1
+            fi
+            echo >> "$report"
+          }
+
+          if [[ "$failed" -eq 0 ]]; then
+            run_check "Typecheck" npm run typecheck
+            run_check "Lint" npm run lint
+            run_check "Unit-Tests" npm run test:unit
+            run_check "Client-Build" npm run build:client
+          else
+            echo "Qualitätsprüfungen wegen geschützter/fehlender Änderung übersprungen." >> "$report"
+          fi
+
+          if [[ "$failed" -eq 0 && "${{ steps.codex.outcome }}" == "success" ]]; then
+            echo "passed=true" >> "$GITHUB_OUTPUT"
+            echo "- Gesamtergebnis: bestanden" >> "$report"
+          else
+            echo "passed=false" >> "$GITHUB_OUTPUT"
+            echo "- Gesamtergebnis: fehlgeschlagen" >> "$report"
+          fi
+
+      - name: Upload attempt report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fh-auto-001-issue-${{ inputs.issue-number }}-attempt-${{ inputs.attempt }}
+          path: validation-report.md
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Commit and push only the feature branch
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -f validation-report.md .github/codex/runtime-prompt.md .github/codex/codex-final-message.txt
+          if [[ -z "$(git status --porcelain)" ]]; then
+            echo "Keine Branch-Änderung zum Veröffentlichen."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "chore(agent): attempt ${ATTEMPT} for issue #${ISSUE_NUMBER}"
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push "$remote" "HEAD:refs/heads/${AGENT_BRANCH}"
+
+      - name: Fail the attempt when validation did not pass
+        if: steps.verify.outputs.passed != 'true'
+        shell: bash
+        run: exit 1
