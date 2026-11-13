@@ -8,6 +8,7 @@ import {
 import type {
   CreateFamilyInvitationInput,
   CreateManagedMemberInput,
+  FamilyInvitationDecision,
   FamilySummary,
   UpdateManagedMemberInput,
 } from "@familyhub/contracts";
@@ -23,7 +24,9 @@ import {
   listFamilyMembers,
   listFamilyMembershipsAdmin,
   listMyFamilies,
+  listMyPendingFamilyInvitations,
   revokeFamilyInvitation,
+  respondToFamilyInvitation,
   updateManagedMember as updateManagedMemberRequest,
 } from "./family-service";
 import {
@@ -40,6 +43,8 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
   const [members, setMembers] = useState<FamilyContextValue["members"]>([]);
   const [memberships, setMemberships] = useState<FamilyContextValue["memberships"]>([]);
   const [invitations, setInvitations] = useState<FamilyContextValue["invitations"]>([]);
+  const [pendingInvitations, setPendingInvitations] = useState<FamilyContextValue["pendingInvitations"]>([]);
+  const [pendingInvitationsError, setPendingInvitationsError] = useState<string | null>(null);
   const [membersFamilyId, setMembersFamilyId] = useState<string | null>(null);
   const [status, setStatus] = useState<FamilyLoadStatus>("loading");
   const [membersStatus, setMembersStatus] = useState<FamilyLoadStatus>("ready");
@@ -75,6 +80,22 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
+  const refreshPendingInvitations = useCallback(async () => {
+    if (!user) {
+      setPendingInvitations([]);
+      setPendingInvitationsError(null);
+      return;
+    }
+
+    try {
+      const nextInvitations = await listMyPendingFamilyInvitations();
+      setPendingInvitations(nextInvitations);
+      setPendingInvitationsError(null);
+    } catch (loadError) {
+      setPendingInvitationsError(getErrorMessage(loadError));
+    }
+  }, [user]);
+
   useEffect(() => {
     if (authStatus !== "ready") {
       return;
@@ -89,6 +110,8 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
           setFamiliesUserId(null);
           setSelectedFamilyId(null);
           setStatus("ready");
+          setPendingInvitations([]);
+          setPendingInvitationsError(null);
         }
       });
     } else {
@@ -108,6 +131,16 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
         if (active) {
           setStatus("error");
           setError(getErrorMessage(loadError));
+        }
+      });
+      void listMyPendingFamilyInvitations().then((nextInvitations) => {
+        if (active) {
+          setPendingInvitations(nextInvitations);
+          setPendingInvitationsError(null);
+        }
+      }).catch((loadError: unknown) => {
+        if (active) {
+          setPendingInvitationsError(getErrorMessage(loadError));
         }
       });
     }
@@ -278,12 +311,29 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     await refreshFamilies(familyId);
   }, [refreshFamilies]);
 
+  const respondToInvitation = useCallback(async (
+    invitationId: string,
+    decision: FamilyInvitationDecision,
+  ) => {
+    const result = await respondToFamilyInvitation(invitationId, decision);
+    if (decision === "accepted") {
+      await refreshFamilies(result.familyId ?? undefined);
+    }
+    if (decision !== "remind_later") {
+      setPendingInvitations((current) =>
+        current.filter((invitation) => invitation.invitation_id !== invitationId),
+      );
+    }
+  }, [refreshFamilies]);
+
   const value = useMemo<FamilyContextValue>(() => ({
     families: visibleFamilies,
     selectedFamily,
     members: selectedFamily?.family_id === membersFamilyId ? members : [],
     memberships: selectedFamily?.family_id === membersFamilyId ? memberships : [],
     invitations: selectedFamily?.family_id === membersFamilyId ? invitations : [],
+    pendingInvitations,
+    pendingInvitationsError,
     status: effectiveStatus,
     membersStatus:
       selectedFamily && selectedFamily.family_id !== membersFamilyId
@@ -302,12 +352,16 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     revokeInvitation,
     deactivateMembership,
     acceptInvitation,
+    refreshPendingInvitations,
+    respondToInvitation,
   }), [
     visibleFamilies,
     selectedFamily,
     members,
     memberships,
     invitations,
+    pendingInvitations,
+    pendingInvitationsError,
     membersFamilyId,
     effectiveStatus,
     membersStatus,
@@ -323,7 +377,10 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     revokeInvitation,
     deactivateMembership,
     acceptInvitation,
+    refreshPendingInvitations,
+    respondToInvitation,
   ]);
 
   return <FamilyContext.Provider value={value}>{children}</FamilyContext.Provider>;
 }
+
