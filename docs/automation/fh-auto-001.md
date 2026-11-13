@@ -68,3 +68,9 @@ Die bestehende `.github/workflows/ci.yml` bleibt unverändert. Branch-Protection
 5. Nach dem Merge der Pipeline einen unkritischen Testauftrag ohne Datenbank- oder Produktionsbezug anlegen, die Felder prüfen und das Label bewusst setzen. Den Draft-PR und den vollständigen CI-Lauf manuell kontrollieren; nicht automatisch mergen.
 
 Offen bleibt der End-to-End-Nachweis, bis ein Administrator das Secret eingerichtet, die Action-Ausführung erlaubt und die Branch-Protection im GitHub-UI bestätigt hat.
+
+## Testlauf FH-AUTO-TEST-001 (Issue #9)
+
+Am 13.11.2026 wurden auf `codex/agent-9` die nicht-datenbankbezogenen Prüfungen `npm run typecheck`, `npm run lint`, `npm run test:unit` (43 Tests in fünf Dateien) und `npm run build:client` erfolgreich ausgeführt. Die GitHub-Schrittzusammenfassung konnte Vitest wegen eines schreibgeschützten Pfads nicht speichern; der Client-Build meldete eine Warnung zur Chunk-Größe.
+
+Die Dokumentation ist die einzige im Auftrag bearbeitete Datei; Supabase-Migrationen und Datenbankänderungen wurden nicht ausgeführt. Commit und Erstellung des Draft-PR gegen `main` übernimmt anschließend die Pipeline. Der vollständige End-to-End-Nachweis einschließlich Draft-PR, CI-Ergebnissen und manueller Diff-Kontrolle bleibt bis zu deren Prüfung offen.
