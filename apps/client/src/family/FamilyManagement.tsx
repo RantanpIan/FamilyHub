@@ -7,7 +7,6 @@ import {
 import { EmptyState, ErrorState, LoadingState } from "@familyhub/ui";
 import { getErrorMessage } from "../auth/auth-utils";
 import { useFamily } from "./useFamily";
-import { createFamilyInvitationLink } from "./family-service";
 
 export function FamilyManagement() {
   const {
@@ -29,8 +28,6 @@ export function FamilyManagement() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [invitationLink, setInvitationLink] = useState<string | null>(null);
-  const [inviteCopied, setInviteCopied] = useState(false);
   const isAdmin = selectedFamily?.role === "family_admin";
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -76,30 +73,16 @@ export function FamilyManagement() {
     setPending(true);
     setError(null);
     setNotice(null);
-    setInvitationLink(null);
-    setInviteCopied(false);
     try {
-      const token = await createInvitation(parsed.data);
-      setInvitationLink(createFamilyInvitationLink(token));
-      setNotice("Die Einladung wurde erstellt. Kopiere den Link jetzt; er wird nicht erneut angezeigt.");
+      await createInvitation(parsed.data);
+      setNotice(
+        "Die Einladung wurde erstellt. Nach der E-Mail-Bestätigung erscheint sie beim nächsten Login des eingeladenen Kontos sicher als Dialog.",
+      );
       formElement.reset();
     } catch (createError) {
       setError(getErrorMessage(createError));
     } finally {
       setPending(false);
-    }
-  }
-
-  async function copyInvitationLink() {
-    if (!invitationLink) {
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(invitationLink);
-      setInvitationLink(null);
-      setInviteCopied(true);
-    } catch (copyError) {
-      setError(getErrorMessage(copyError));
     }
   }
 
@@ -149,7 +132,6 @@ export function FamilyManagement() {
       </p>
       {error && <ErrorState description={error} />}
       {notice && <p className="auth-notice" role="status">{notice}</p>}
-      {inviteCopied && <p className="auth-notice" role="status">Einladungslink kopiert.</p>}
 
       {membersStatus === "loading" ? (
         <LoadingState label="Familienmitglieder werden geladen" />
@@ -257,12 +239,7 @@ export function FamilyManagement() {
             Einladungen verknüpfen ein vorhandenes Erwachsenenprofil. Rollenänderungen
             bleiben bis zur Klärung der Rollenmatrix gesperrt.
           </p>
-          {invitationLink ? (
-            <button className="primary-button" type="button" onClick={() => void copyInvitationLink()}>
-              Einladungslink kopieren
-            </button>
-          ) : (
-            <form className="auth-form" onSubmit={(event) => void submitInvitation(event)}>
+          <form className="auth-form" onSubmit={(event) => void submitInvitation(event)}>
               <label>
                 Vorhandenes Erwachsenenprofil
                 <select name="targetMemberId" defaultValue="" required>
@@ -292,8 +269,7 @@ export function FamilyManagement() {
               <button className="primary-button" type="submit" disabled={pending}>
                 {pending ? "Einladung wird erstellt …" : "Einladung erstellen"}
               </button>
-            </form>
-          )}
+          </form>
           {invitations.length > 0 && (
             <ul className="family-member-list" aria-label="Einladungen">
               {invitations.map((invitation) => (
@@ -308,7 +284,9 @@ export function FamilyManagement() {
                             ? "Angenommen"
                             : invitation.status === "revoked"
                               ? "Widerrufen"
-                              : "Abgelaufen"}
+                              : invitation.status === "declined"
+                                ? "Abgelehnt"
+                                : "Abgelaufen"}
                       </span>
                     </div>
                     {invitation.status === "pending" && (
@@ -434,3 +412,4 @@ function ManagedMemberRow({
     </li>
   );
 }
+
