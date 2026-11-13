@@ -51,7 +51,6 @@ jobs:
           else
             git switch -c "$AGENT_BRANCH"
           fi
-          git fetch --no-tags origin main:refs/remotes/origin/main
 
       - name: Install locked dependencies before the agent
         run: npm ci
@@ -189,3 +188,4 @@ jobs:
         if: steps.verify.outputs.passed != 'true'
         shell: bash
         run: exit 1
+
