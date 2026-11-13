@@ -101,3 +101,4 @@ Wenn eine Entscheidung notwendig wird:
 ## 5. Dokumentationshinweis
 
 Die Originalabschnitte der Phasen A und B sind bei diesem Export nicht in voller Länge verfügbar. Beschlossene Eckpunkte sind dokumentiert, aber die vollständige Original-Fachlogik, die SQL-Detailentwürfe und der Volltext jedes der 34 Entwicklungsaufträge müssen ergänzt bzw. abgeglichen werden. **Bis dahin gilt: neue Details weder rückwirkend als beschlossen ausgeben noch stillschweigend umsetzen.**
+
