@@ -99,6 +99,7 @@ jobs:
           permission-profile: ":workspace"
           safety-strategy: drop-sudo
           allow-users: RantanpIan
+          allow-bots: true
           effort: low
           codex-args: '["--ephemeral"]'
 
