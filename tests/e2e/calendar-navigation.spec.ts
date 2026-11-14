@@ -40,7 +40,7 @@ for (const width of [320, 390, 768, 1440]) {
     await page.goto("/app");
     await page.getByRole("button", { name: "Kalender", exact: true }).filter({ visible: true }).click();
     await expect(page.locator(".calendar-day")).toHaveCount(42);
-    await expect(page.getByRole("heading", { name: "November 2026" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "November 2026", exact: true })).toBeVisible();
     const emptyDay = page.getByTestId("calendar-day-2026-11-15");
     await emptyDay.focus();
     await page.keyboard.press("Enter");
