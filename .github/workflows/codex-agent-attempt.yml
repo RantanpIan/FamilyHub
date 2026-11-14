@@ -6,6 +6,12 @@ on:
       issue-number:
         required: true
         type: string
+      issue-title:
+        required: true
+        type: string
+      issue-body:
+        required: true
+        type: string
       branch:
         required: true
         type: string
@@ -64,8 +70,8 @@ jobs:
       - name: Build untrusted runtime prompt
         shell: bash
         env:
-          ISSUE_TITLE: ${{ github.event.issue.title }}
-          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_TITLE: ${{ inputs.issue-title }}
+          ISSUE_BODY: ${{ inputs.issue-body }}
         run: |
           node <<'NODE'
           const fs = require('node:fs');

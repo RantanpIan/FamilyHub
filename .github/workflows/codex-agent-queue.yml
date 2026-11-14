@@ -9,6 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: write
   contents: read
   issues: write
 
@@ -47,8 +48,8 @@ jobs:
             // A completed/cancelled worker releases its queue marker here as a
             // recovery path, even if its final cleanup job was skipped.
             if (context.eventName === 'workflow_run') {
-              const branch = context.payload.workflow_run?.head_branch ?? '';
-              const match = branch.match(/^codex\/agent-(\d+)$/);
+              const title = context.payload.workflow_run?.display_title ?? '';
+              const match = title.match(/#(\d+)\b/);
               if (match) {
                 try {
                   await github.rest.issues.removeLabel({
@@ -119,4 +120,13 @@ jobs:
               issue_number: next.number,
               body: `FH-AUTO-001 QUEUED: Issue #${next.number} wurde für die serielle Bearbeitung ausgewählt. Die Reihenfolge wird deterministisch nach aufsteigender Issue-Nummer abgearbeitet. Nach Abschluss wird automatisch der nächste agent-ready Auftrag gestartet. Kein paralleler Agentenlauf und kein automatischer Merge.`,
             });
-            core.notice(`FH-AUTO-001 gestartet: Issue #${next.number} ist jetzt agent-queued.`);
+            await github.rest.actions.createWorkflowDispatch({
+              owner,
+              repo,
+              workflow_id: 'codex-agent-ready.yml',
+              ref: 'main',
+              inputs: {
+                'issue-number': String(next.number),
+              },
+            });
+            core.notice(`FH-AUTO-001 gestartet: Issue #${next.number} wurde explizit an Codex übergeben.`);
