@@ -74,3 +74,7 @@ Offen bleibt der End-to-End-Nachweis, bis ein Administrator das Secret eingerich
 Am 13.11.2026 wurden auf `codex/agent-9` die nicht-datenbankbezogenen Prüfungen `npm run typecheck`, `npm run lint`, `npm run test:unit` (43 Tests in fünf Dateien) und `npm run build:client` erfolgreich ausgeführt. Die GitHub-Schrittzusammenfassung konnte Vitest wegen eines schreibgeschützten Pfads nicht speichern; der Client-Build meldete eine Warnung zur Chunk-Größe.
 
 Die Dokumentation ist die einzige im Auftrag bearbeitete Datei; Supabase-Migrationen und Datenbankänderungen wurden nicht ausgeführt. Commit und Erstellung des Draft-PR gegen `main` übernimmt anschließend die Pipeline. Der vollständige End-to-End-Nachweis einschließlich Draft-PR, CI-Ergebnissen und manueller Diff-Kontrolle bleibt bis zu deren Prüfung offen.
+
+### Erneute Prüfung am 14.11.2026
+
+Auf `codex/agent-9` wurden `npm run typecheck`, `npm run lint`, `npm run test:unit` (43 Tests in fünf Dateien) und `npm run build:client` erneut erfolgreich ausgeführt (jeweils Exit-Code 0). Vitest konnte die GitHub-Schrittzusammenfassung wegen eines schreibgeschützten Pfads weiterhin nicht speichern; der Build meldete weiterhin die Chunk-Größenwarnung. Es wurden keine Supabase-Migrationen oder Datenbankänderungen ausgeführt. Der erfolgreiche lokale Prüflauf bestätigt noch nicht die anschließende Draft-PR-Erstellung oder deren CI-Ergebnisse; diese bleiben durch Pipeline und manuelle Kontrolle nachzuweisen.
