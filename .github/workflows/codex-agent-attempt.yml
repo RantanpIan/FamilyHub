@@ -180,8 +180,8 @@ jobs:
           set -euo pipefail
           rm -f validation-report.md .github/codex/runtime-prompt.md .github/codex/codex-final-message.txt
           if [[ -z "$(git status --porcelain)" ]]; then
-            echo "Keine Branch-Änderung zum Veröffentlichen."
-            exit 0
+            echo "Keine Branch-Änderung zum Veröffentlichen; der Versuch wird als fehlgeschlagen behandelt." >&2
+            exit 1
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
