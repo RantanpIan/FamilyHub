@@ -236,6 +236,68 @@ jobs:
           script: |
             const issue = context.payload.issue;
             const branch = `codex/agent-${issue.number}`;
+
+            const blockIssue = async (reason) => {
+              try {
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: 'agent-blocked',
+                  color: 'b60205',
+                  description: 'FH-AUTO-001 benötigt manuelle Klärung',
+                });
+              } catch (error) {
+                if (error.status !== 422) throw error;
+              }
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: ['agent-blocked'],
+              });
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `FH-AUTO-001 BLOCKED: ${reason} Es wurde kein Draft-PR erstellt, kein Merge ausgeführt und keine Datenbank-/Cloud-Änderung vorgenommen. Bitte den Lauf manuell prüfen und agent-ready erst nach Korrektur bewusst erneut setzen.`,
+              });
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  name: 'agent-ready',
+                });
+              } catch (error) {
+                core.warning(`agent-ready konnte nach Blockierung nicht entfernt werden: ${error.message}`);
+              }
+            };
+
+            try {
+              await github.rest.repos.getBranch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                branch,
+              });
+            } catch (error) {
+              if (error.status === 404) {
+                await blockIssue(`Der erwartete Feature-Branch ${branch} existiert nicht.`);
+                return;
+              }
+              throw error;
+            }
+
+            const comparison = await github.rest.repos.compareCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              base: 'main',
+              head: branch,
+            });
+            if ((comparison.data.ahead_by ?? 0) < 1 || (comparison.data.total_commits ?? 0) < 1) {
+              await blockIssue(`Der Feature-Branch ${branch} enthält keinen veröffentlichbaren Commit gegenüber main.`);
+              return;
+            }
+
             const prs = await github.paginate(github.rest.pulls.list, {
               owner: context.repo.owner,
               repo: context.repo.repo,
