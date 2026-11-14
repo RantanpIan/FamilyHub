@@ -79,6 +79,52 @@ Die Sammelbezeichnungen der Gruppen sind **keine** rekonstruierten Originaltitel
 | FH-CX-033 | Releaseabsicherung | Originalauftrag ergänzen | Nicht verifiziert |
 | FH-CX-034 | Releaseabsicherung | Originalauftrag ergänzen | Nicht verifiziert |
 
+
+### 3.1 Nachzutragende Aufträge – vorläufige Arbeitsliste
+
+Die folgenden Bezeichnungen sind **Vorschläge zur Schließung der sichtbaren
+Backlog-Lücken**, keine rekonstruierten Originaltitel und keine neuen
+Baseline-Beschlüsse. Sie machen die noch offenen Arbeitsbereiche planbar,
+ersetzen aber nicht die fehlenden Originalaufträge, Akzeptanzkriterien und
+Abhängigkeiten. Vor der Erstellung eines ausführbaren GitHub-Issues müssen
+die jeweiligen Fachdetails ergänzt, geprüft und ausdrücklich freigegeben
+werden. Kein Eintrag ist dadurch `agent-ready`.
+
+| ID | Vorläufiger Arbeitsbereich | Grundlage / Abgrenzung | Status |
+| --- | --- | --- | --- |
+| FH-CX-008 | Kalender-Datenmodell für Einzeltermine und private Sichtbarkeit | Dokumentierter Teilumfang in Abschnitt 10; Serien, Teilnehmer, Push und Lernplan ausgeschlossen | Teilumfang dokumentiert; vollständiger Originalauftrag offen |
+| FH-CX-009 | Nutzbare Einzeltermine: Erstellen, Ändern, Löschen und Anzeigen | Dokumentierter Teilumfang in Abschnitt 11; Serien, Push, Import und Lernplan ausgeschlossen | Teilumfang dokumentiert; vollständiger Originalauftrag offen |
+| FH-CX-010 | Kalenderansichten und Navigation | Kalender-Baseline; konkrete Ansichten und Akzeptanzkriterien fehlen | Vorschlag; Originalauftrag offen |
+| FH-CX-011 | Serientermine und Wiederholungsregeln | Kalender-Baseline; Regelnotation und Änderungssemantik sind offen | Vorschlag; Originalauftrag/Entscheidung offen |
+| FH-CX-012 | Ausnahmen und einzelne Vorkommen von Serienterminen | Abhängigkeiten aus dem Register; genaue Serienlogik fehlt | Vorschlag; Originalauftrag/Abhängigkeit offen |
+| FH-CX-013 | Kalenderfreigaben und fachliche Terminbeteiligung | Gemeinsame/private Sichtbarkeit; Rollen- und Teilnehmermatrix offen | Vorschlag; Originalauftrag/Rechtematrix offen |
+| FH-CX-014 | Zeitzonen, Ganztag und Sommerzeit | Kalender-Baseline; verbindliche Zeitkonvention offen | Vorschlag; Originalauftrag/Entscheidung offen |
+| FH-CX-015 | Erinnerungen und konsistente Terminänderungen | Kalender-/Push-Schnittstelle; Vorlaufregeln offen | Vorschlag; Originalauftrag/Push-Regeln offen |
+| FH-CX-016 | Kalender-Regression, Konsistenz und Abnahme | Serien-, Rechte-, Zeit- und Familienisolationsprüfungen | Vorschlag; Originalauftrag/Abnahmekriterien offen |
+| FH-CX-017 | Push-Kanäle und Geräte-/Subscription-Grundlage | FCM, APNs und Web Push sind Baseline; konkrete Infrastruktur offen | Vorschlag; Originalauftrag/Infrastruktur offen |
+| FH-CX-018 | Familienbezogene Empfängerauflösung und Berechtigungsprüfung | Push-Baseline; Abhängigkeit zu Empfänger- und Rollenregeln | Vorschlag; Originalauftrag/Abhängigkeit offen |
+| FH-CX-019 | Vorlaufzeiten, Ruhezeiten und Benachrichtigungseinstellungen | Fachliche Push-Regeln ausdrücklich offen | Vorschlag; Originalauftrag/Entscheidung offen |
+| FH-CX-020 | Idempotente Zustellung, Outbox und kontrollierte Wiederholungen | Architektur-Baseline; Retry-/Dead-Letter-Regeln offen | Vorschlag; Originalauftrag/Infrastruktur offen |
+| FH-CX-021 | Push-Sicherheits-, Datenschutz- und Zustellungstests | Private Inhalte, Entzug von Rechten und Duplikatvermeidung | Vorschlag; Originalauftrag/Abnahmekriterien offen |
+| FH-CX-022 | Schulprofile und Schuljahre | Schule-Baseline; konkrete Daten- und Rechtefelder fehlen | Vorschlag; Originalauftrag offen |
+| FH-CX-023 | Stundenplanversionen und Gültigkeitszeiträume | Schule-Baseline; Versionierungsdetails offen | Vorschlag; Originalauftrag/Entscheidung offen |
+| FH-CX-024 | Rotation, Ferien und Unterrichtsausnahmen | Schule-Baseline; genaue Regel- und Kalendergrenzen offen | Vorschlag; Originalauftrag/Entscheidung offen |
+| FH-CX-025 | Unterrichtsprojektionen im Kalender | Abhängigkeiten aus dem Register; keine zweite Event-Wahrheit | Vorschlag; Originalauftrag/Projektion offen |
+| FH-CX-026 | Schul-/Stundenplanrechte und Konsistenztests | Familienisolation, Rollen, Projektionen und Versionswechsel | Vorschlag; Originalauftrag/Rechtematrix offen |
+| FH-CX-027 | Privater Foto-/PDF-Upload für Kalender und Stundenplan | Import-Baseline; Formate und Dateigrenzen offen | Vorschlag; Originalauftrag/Entscheidung offen |
+| FH-CX-028 | Importjob, Extraktion und austauschbare OCR-/KI-Provider | Architekturrekonstruktion; Provider und Automatisierungsstufe offen | Vorschlag; Originalauftrag/Entscheidung offen |
+| FH-CX-029 | Entwurf, Prüfung und Korrektur importierter Daten | Abhängigkeiten aus dem Register; Review-Pflicht vor Veröffentlichung | Vorschlag; Originalauftrag/Abnahmekriterien offen |
+| FH-CX-030 | Kontrollierte Veröffentlichung in Kalender oder Schule | Fachmodul bleibt Quelle der Wahrheit; Veröffentlichungsrechte offen | Vorschlag; Originalauftrag/Rechtematrix offen |
+| FH-CX-031 | Import-Idempotenz, Datenschutz und Ende-zu-Ende-Tests | Doppelte Uploads, Retries, Cross-Family und private Dateien | Vorschlag; Originalauftrag/Abnahmekriterien offen |
+| FH-CX-032 | Übergreifendes Auth-/RLS-/Familienisolations-Release-Gate | Releaseabsicherung; konkrete Gate-Liste fehlt | Vorschlag; Originalauftrag/Abhängigkeiten offen |
+| FH-CX-033 | Mobile/PWA-, Barrierearmut-, Performance- und Zuverlässigkeitsprüfung | Qualitäts- und UX-Baseline; konkrete Schwellen fehlen | Vorschlag; Originalauftrag/Abnahmekriterien offen |
+| FH-CX-034 | Release-, Betriebs- und manuelle Freigabeprüfung | Infrastruktur-, Backup-, Monitoring- und Releasefragen sind offen | Vorschlag; Originalauftrag/Entscheidung offen |
+
+**Nächster Backlog-Schritt:** Aus dieser Arbeitsliste jeweils nur dann ein
+GitHub-Issue mit `agent-ready`-Option machen, wenn Originalquelle oder
+ausdrückliche fachliche Freigabe, prüfbare Akzeptanzkriterien, Testfälle,
+Abhängigkeiten und Ausschlüsse vorliegen.
+
 ## 4. FH-CX-001 – vorheriger Auftrag
 
 **Status:** **Abgeschlossen** – im vorherigen Auftrag implementiert und die dort dokumentierten Prüfungen erfolgreich ausgeführt.
