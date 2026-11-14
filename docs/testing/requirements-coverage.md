@@ -300,3 +300,37 @@ Wechsel zwischen Familien, Mobilansicht, Bearbeitung, Konflikte und Löschung.
 | Browser E2E | Mobile Monatsansicht, 42 Tage, Monatsnavigation, Terminanlage/-bearbeitung/-löschung, Terminperson und automatische Endzeit |
 
 **Realer Befund (12.11.2026):** In `Familyhub_dev` gab es zwei aktive Familien mit jeweils genau einem aktiven Kontobenutzer. Ein in Familie A freigegebener Termin darf bei einem Konto, das nur Familie B angehört, nicht erscheinen. Die Zuordnung der echten Konten erfolgt über die bestehende Einladung; personenbezogene SQL-Testdaten werden nicht erzeugt.
+
+## FH-CX-010 – Kalenderansichten und Navigation (Issue 16)
+
+**Status:** Implementiert; Browserabnahme und erneuter PostgreSQL-RLS-Nachweis offen.
+
+Die vorhandene Monatsansicht bleibt der Zeitraumvertrag: sechs vollständige
+Wochen (42 Tage), Montag bis Sonntag, einschließlich leerer Tage und Randtagen.
+Tagesauswahl, Monatswechsel und Heute verwenden die bestehende Datumslogik.
+Termindetails laden die Liste über den vorhandenen RLS-geschützten Service erneut;
+ein inzwischen unsichtbarer Termin führt zu einer neutralen Meldung und entfernt
+auch die bisherigen Listeninhalte und Zählwerte. Ein Familien-/Mitgliedswechsel
+setzt den lokalen Kalenderzustand zurück. Fehler zeigen keine Server-Rohtexte.
+Es gibt keine neue Detail-API, Datenmodelle, Migrationen oder Berechtigungsregeln.
+
+| Akzeptanzkriterium | Nachweis |
+| --- | --- |
+| Vollständiger Zeitraum, leere Tage, Tagesauswahl | `tests/unit/calendar-page.test.tsx`, vorhandene und ergänzte Datumstests in `calendar-utils.test.ts` |
+| Tagesgrenzen, Nachttermine, Zeitumstellung, Jahreswechsel, Schaltjahr | `tests/unit/calendar-utils.test.ts` |
+| Lade-, Leer-, Fehler- und verweigerter Zugriff | `tests/unit/calendar-page.test.tsx` |
+| Detailnavigation, erneute Serverabfrage, Fokus beim Zurückgehen | `tests/unit/calendar-page.test.tsx` |
+| Keine alten privaten Inhalte nach Familienwechsel / entzogenem Detailzugriff | Komponententests mit simulierten Serviceantworten; kein Ersatz für RLS |
+| 320 px, 390 px, Tablet (768 px), Desktop (1440 px), Tastatur und Aktionsüberdeckung | `tests/e2e/calendar-navigation.spec.ts`: simulierte Auth-/Familien-/Kalenderservices, echte App-Oberfläche, keine Datenbankschreibzugriffe; Ausführung durch lokale Netzwerkbeschränkung (`EPERM` auf `127.0.0.1:5173`) blockiert |
+| Direkter API-Zugriff mit fremder ID, private Sichtbarkeit | Bestehende `tests/integration/calendar-events.rls.test.ts`; in diesem Auftrag nicht ausgeführt, da die Fixtures Datenbankänderungen durchführen |
+
+Verifikation im Agentenlauf: Typecheck, Lint, Unit-Tests und Client-Build ausgeführt.
+Der Build meldet weiterhin einen JavaScript-Chunk über 500 kB. Der Unit-Reporter
+kann die außerhalb des Workspace liegende GitHub-Step-Summary nicht schreiben;
+das Testergebnis selbst wird dadurch nicht verändert. Keine Aussage über einen
+neuen erfolgreichen CI-/RLS-/Browserlauf. Nächster Schritt ist die Ausführung der
+Browserfälle in einer Umgebung mit freigegebenem lokalen Webserver und separat
+autorisierte RLS-Prüfung auf einer wegwerfbaren Testdatenbank.
+
+Kalenderdaten, Rollen-/Sichtbarkeitsmatrix, Serien, Stundenplanprojektionen,
+Push-Empfänger und Import-/Synchronisationslogik bleiben unverändert.

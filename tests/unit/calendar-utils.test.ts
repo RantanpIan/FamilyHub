@@ -58,4 +58,21 @@ describe("calendar date helpers", () => {
     expect(eventOnDay(event, "2026-11-23")).toBe(false);
     expect(dayLabel("2026-11-23")).toContain("23");
   });
+
+  it("berücksichtigt Nachttermine und die Zeitumstellung in der Terminzeitzone", () => {
+    const event = {
+      is_all_day: false,
+      starts_at: "2026-10-24T21:30:00Z",
+      ends_at: "2026-10-25T02:30:00Z",
+      start_date: null,
+      end_date_exclusive: null,
+      time_zone: "Europe/Berlin",
+    };
+    expect(eventOnDay(event, "2026-10-23")).toBe(false);
+    expect(eventOnDay(event, "2026-10-24")).toBe(true);
+    expect(eventOnDay(event, "2026-10-25")).toBe(true);
+    expect(eventOnDay(event, "2026-10-26")).toBe(false);
+    expect(monthCells(2027, 0)[0]).toBe("2026-12-28");
+    expect(monthCells(2028, 1)).toContain("2028-02-29");
+  });
 });
