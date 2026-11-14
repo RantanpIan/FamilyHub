@@ -1658,3 +1658,20 @@ a:focus-visible {
   }
 }
 
+
+/* FH-CX-010: Details und lange Inhalte auf schmalen Ansichten. */
+.calendar-detail {
+  margin-block: 20px;
+  padding: 16px;
+  border: 1px solid #dce7df;
+  border-radius: 18px;
+  overflow-wrap: anywhere;
+}
+
+.calendar-page .calendar-selected-day .section-heading {
+  flex-wrap: wrap;
+}
+
+.calendar-event-content {
+  overflow-wrap: anywhere;
+}

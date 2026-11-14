@@ -22,6 +22,14 @@ import {
   toLocalDateTime,
 } from "./calendar-utils";
 
+function calendarLoadError(error: unknown): string {
+  const code = typeof error === "object" && error !== null && "code" in error ? error.code : null;
+  if (code === "42501" || code === "PGRST301" || code === "PGRST302") {
+    return "Kein Zugriff auf den Kalender. Bitte prüfe deine Anmeldung und Familienzugehörigkeit.";
+  }
+  return "Termine konnten nicht geladen werden. Bitte versuche es erneut.";
+}
+
 function describeEvent(event: CalendarEntry): string {
   if (event.is_all_day) {
     return `Ganztägig: ${event.start_date} bis ${event.end_date_exclusive} (Ende exklusiv)`;
@@ -255,10 +263,15 @@ function CalendarEditor({
 }
 
 export function CalendarPage() {
+  const { selectedFamily } = useFamily();
+  return <FamilyCalendar key={(selectedFamily?.family_id ?? "none") + ":" + (selectedFamily?.member_id ?? "none")} />;
+}
+
+function FamilyCalendar() {
   const { selectedFamily, members } = useFamily();
   const familyId = selectedFamily?.family_id ?? null;
   const ownerMemberId = selectedFamily?.member_id ?? null;
-  const [events, setEvents] = useState<CalendarEntry[]>([]);
+  const [loadedEvents, setEvents] = useState<CalendarEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -266,6 +279,14 @@ export function CalendarPage() {
   const [editing, setEditing] = useState<CalendarEntry | null>(null);
   const [showEditor, setShowEditor] = useState(false);
   const [revision, setRevision] = useState(0);
+  const [detail, setDetail] = useState<CalendarEntry | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const detailRequest = useRef(0);
+  const detailHeading = useRef<HTMLHeadingElement>(null);
+  const detailTrigger = useRef<HTMLButtonElement | null>(null);
+  const restoreDetailFocus = useRef(false);
+  const events = loading || loadError ? [] : loadedEvents;
   const today = localDate(new Date());
   const [selectedDay, setSelectedDay] = useState(today);
   const [displayMonth, setDisplayMonth] = useState(
@@ -293,14 +314,58 @@ export function CalendarPage() {
       .catch((error: unknown) => {
         if (active) {
           setLoading(false);
-          setLoadError(getErrorMessage(error));
+          setLoadError(calendarLoadError(error));
           setEvents([]);
         }
       });
     return () => { active = false; };
   }, [familyId, revision]);
 
+  useEffect(() => {
+    if (detail || detailLoading || detailError) {
+      detailHeading.current?.focus();
+    } else if (restoreDetailFocus.current) {
+      restoreDetailFocus.current = false;
+      if (detailTrigger.current?.isConnected) detailTrigger.current.focus();
+      else document.getElementById("calendar-selected-title")?.focus();
+    }
+  }, [detail, detailLoading, detailError]);
+
+  async function openDetail(entry: CalendarEntry, trigger: HTMLButtonElement) {
+    if (!familyId) return;
+    const request = ++detailRequest.current;
+    detailTrigger.current = trigger;
+    setEditing(null);
+    setShowEditor(false);
+    setDetail(null);
+    setDetailError(null);
+    setDetailLoading(true);
+    try {
+      const rows = await listCalendarEvents(familyId);
+      if (request !== detailRequest.current) return;
+      setEvents(rows);
+      const current = rows.find((row) => row.resource_id === entry.resource_id);
+      if (current) setDetail(current);
+      else setDetailError("Der Termin ist nicht verfügbar oder du hast keinen Zugriff mehr.");
+    } catch (error) {
+      if (request !== detailRequest.current) return;
+      setEvents([]);
+      setDetailError(calendarLoadError(error));
+    } finally {
+      if (request === detailRequest.current) setDetailLoading(false);
+    }
+  }
+
+  function closeDetail() {
+    detailRequest.current += 1;
+    setDetail(null);
+    setDetailLoading(false);
+    setDetailError(null);
+    restoreDetailFocus.current = true;
+  }
+
   function reload() {
+    closeDetail();
     setLoading(true);
     setRevision((previous) => previous + 1);
   }
@@ -346,7 +411,7 @@ export function CalendarPage() {
   }
 
   if (!familyId || !ownerMemberId) {
-    return <LoadingState label="Familienkalender wird vorbereitet" />;
+    return <ErrorState title="Kein Zugriff auf den Kalender" description="Bitte wähle eine berechtigte Familie aus." />;
   }
 
   return (
@@ -376,6 +441,19 @@ export function CalendarPage() {
         </div>
       )}
       {actionError && <ErrorState description={actionError} />}
+      {(detail || detailLoading || detailError) && (
+        <section className="calendar-detail" aria-labelledby="calendar-detail-title">
+          <h3 id="calendar-detail-title" ref={detailHeading} tabIndex={-1}>Termindetails</h3>
+          {detailLoading && <LoadingState label="Zugriff auf Termin wird geprüft" />}
+          {detailError && <ErrorState description={detailError} />}
+          {detail && <>
+            <h4>{detail.title}</h4>
+            <p>{describeEvent(detail)}</p>
+            <p>{detail.resource.visibility === "private" ? "Privat" : "Familie"} · Termin für {subjectName(detail)}</p>
+          </>}
+          <button type="button" className="text-button" onClick={closeDetail}>Zurück zur Tagesansicht</button>
+        </section>
+      )}
       {showEditor && (
         <CalendarEditor
           key={editing?.resource_id ?? "new-" + selectedDay}
@@ -398,7 +476,7 @@ export function CalendarPage() {
             onClick={() => shiftMonth(-1)}>
             ‹
           </button>
-          <h3>{monthLabel}</h3>
+          <h3 aria-live="polite">{monthLabel}</h3>
           <button className="text-button" type="button" aria-label="Nächster Monat"
             onClick={() => shiftMonth(1)}>
             ›
@@ -433,7 +511,7 @@ export function CalendarPage() {
                   isToday ? "is-today" : "",
                   isSelected ? "is-selected" : "",
                 ].filter(Boolean).join(" ")}
-                aria-label={dayLabel(day) + (dayEvents.length ? ", " + dayEvents.length + " Termine" : ", keine Termine")}
+                aria-label={dayLabel(day) + (loading || loadError ? ", Termine noch nicht verfügbar" : dayEvents.length ? ", " + dayEvents.length + " Termine" : ", keine Termine")}
                 aria-pressed={isSelected}
                 data-testid={"calendar-day-" + day}
                 onClick={() => selectDay(day)}
@@ -464,10 +542,10 @@ export function CalendarPage() {
 
       <section className="calendar-selected-day" aria-labelledby="calendar-selected-title">
         <div className="section-heading">
-          <h3 id="calendar-selected-title">{dayLabel(selectedDay)}</h3>
-          <span className="calendar-count">
+          <h3 id="calendar-selected-title" tabIndex={-1}>{dayLabel(selectedDay)}</h3>
+          {!loading && !loadError && <span className="calendar-count">
             {selectedEvents.length} {selectedEvents.length === 1 ? "Termin" : "Termine"}
-          </span>
+          </span>}
         </div>
         {loading ? (
           <LoadingState label="Termine werden geladen" />
@@ -488,6 +566,9 @@ export function CalendarPage() {
                     <h3>{entry.title}</h3>
                     <p>{describeEvent(entry)}</p>
                   </div>
+                  <button className="text-button" type="button"
+                    aria-label={"Details zu „" + entry.title + "“"}
+                    onClick={(event) => void openDetail(entry, event.currentTarget)}>Details</button>
                   {isOwner && (
                     <div className="calendar-actions">
                       <button className="text-button" type="button"
