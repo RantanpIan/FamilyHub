@@ -49,7 +49,7 @@ Die Sammelbezeichnungen der Gruppen sind **keine** rekonstruierten Originaltitel
 | FH-CX-004 | Familienverwaltung | **Familienverwaltung und Familienmitglieder** | **Abgeschlossen** |
 | FH-CX-005 | Identity / Family / Access | **Ressourcenberechtigungen, Eigentümerschaft und private Inhalte** | **Implementiert; Abnahme gesondert nachweisen** |
 | FH-CX-006 | Identity / Family / Access | **Familieneinladungen, Mitgliedschaften und Rollenverwaltung** | **Lokal umgesetzt und validiert; Rollenänderungen nach FH-OPEN-001 gesperrt; GitHub Actions nicht bestätigt** |
-| FH-CX-006-FOLLOWUP | Identity / Family / Access | **Emailgebundener Einladungsdialog beim Login** | **Implementiert; PR #5 gemergt, CI grün, Migration auf `Familyhub_dev` angewendet; manuelle Patricia-UI-Prüfung offen** |
+| FH-CX-006-FOLLOWUP | Identity / Family / Access | **Emailgebundener Einladungsdialog beim Login** | **In Umsetzung auf eigenem Feature-Branch; CI/Review offen** |
 | FH-CX-007 | Foundation | **Responsive AppShell und Navigation (vorläufiger Entwicklungsumfang)** | **In Umsetzung auf feature/fh-cx-007-responsive-appshell; Tests noch nicht bestätigt** |
 | FH-CX-008 | Kalender | Originalauftrag ergänzen | Nicht verifiziert |
 | FH-CX-009 | Kalender | Originalauftrag ergänzen | Nicht verifiziert |
@@ -78,6 +78,7 @@ Die Sammelbezeichnungen der Gruppen sind **keine** rekonstruierten Originaltitel
 | FH-CX-032 | Releaseabsicherung | Originalauftrag ergänzen | Nicht verifiziert |
 | FH-CX-033 | Releaseabsicherung | Originalauftrag ergänzen | Nicht verifiziert |
 | FH-CX-034 | Releaseabsicherung | Originalauftrag ergänzen | Nicht verifiziert |
+
 
 ### 3.1 Nachzutragende Aufträge – vorläufige Arbeitsliste
 
@@ -295,10 +296,8 @@ Cloud-Projekt ohne explizite Freigabe. Anschließend Code-Review und PR.
 
 ## FH-CX-006-FOLLOWUP – Emailgebundener Einladungsdialog beim Login (13.11.2026)
 
-**Status:** Implementiert; PR #5 gemergt und CI grün. Die additive Migration
-`20261113100213_add_login_invitation_workflow.sql` ist auf `Familyhub_dev`
-angewendet. Familien- und Einladungsdaten wurden dabei nicht verändert; die
-manuelle Patricia-UI-Prüfung ist noch offen.
+**Status:** In Umsetzung auf `feature/family-invitations-login-modal`; Draft-PR,
+CI und Review offen. Keine Cloud-Daten geändert.
 
 **Ziel:** Ein bereits verifiziertes eingeladenes Konto sieht nach jedem neuen
 Login offene Einladungen automatisch in einem sicheren, mobilen Dialog. Eine
@@ -320,7 +319,7 @@ erforderlich.
 - RLS-/Integrations- und E2E-Tests decken falsche E-Mail, Cross-Family,
   Doppelannahme, Ablehnung, Mehrfamilienkonto sowie 320/390-Pixel-Layout ab.
 
-**Migration:** `20261113100213_add_login_invitation_workflow.sql` ist additiv
-und wurde nach grünem CI, Review und ausdrücklicher Freigabe auf
-`Familyhub_dev` angewendet. Der bestehende Patricia-Eintrag ist weiterhin
-`pending` und wurde nicht angenommen.
+**Migration:** `20261113100000_add_login_invitation_workflow.sql` ist additiv
+und wird erst nach grünem CI, Review und ausdrücklicher Freigabe auf
+`Familyhub_dev` angewendet.
+
