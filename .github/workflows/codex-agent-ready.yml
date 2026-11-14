@@ -24,6 +24,7 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: read
+      actions: write
       issues: write
       pull-requests: read
     outputs:
@@ -88,6 +89,15 @@ jobs:
             const queueTriggered = (issue.labels ?? []).some((label) =>
               (typeof label === 'string' ? label : label.name) === 'agent-queued',
             );
+            const dispatchQueue = async () => {
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'codex-agent-queue.yml',
+                ref: 'main',
+              });
+            };
+
             const senderAllowed = sender === owner || sender === 'github-actions[bot]';
             if (!senderAllowed || !queueTriggered) {
               failClosed(`Der explizite Agentenstart ist nur für ein aktuell agent-queued Issue zulässig (Auslöser: ${sender || 'unbekannt'}).`);
@@ -116,6 +126,7 @@ jobs:
               } catch (error) {
                 core.warning(`agent-queued konnte nicht entfernt werden: ${error.message}`);
               }
+              await dispatchQueue();
               failClosed(details);
               return;
             }
@@ -140,6 +151,7 @@ jobs:
               } catch (error) {
                 core.warning(`agent-queued konnte nicht entfernt werden: ${error.message}`);
               }
+              await dispatchQueue();
               failClosed('Für den deterministischen Agenten-Branch existiert bereits ein offener PR.');
               return;
             }
@@ -248,6 +260,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
+      actions: write
       contents: read
       issues: write
       pull-requests: write
@@ -265,6 +278,15 @@ jobs:
               issue_number: Number(process.env.ISSUE_NUMBER),
             })).data;
             const branch = `codex/agent-${issue.number}`;
+
+            const dispatchQueue = async () => {
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'codex-agent-queue.yml',
+                ref: 'main',
+              });
+            };
 
             const blockIssue = async (reason) => {
               try {
@@ -300,6 +322,7 @@ jobs:
               } catch (error) {
                 core.warning(`agent-queued konnte nach Blockierung nicht entfernt werden: ${error.message}`);
               }
+              await dispatchQueue();
             };
 
             try {
@@ -368,6 +391,7 @@ jobs:
             } catch (error) {
               core.warning(`agent-queued konnte nach Draft-PR nicht entfernt werden: ${error.message}`);
             }
+            await dispatchQueue();
 
   blocked_no_key:
     name: Block without API key
@@ -380,6 +404,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
+      actions: write
       issues: write
     steps:
       - name: Mark issue blocked
@@ -394,6 +419,14 @@ jobs:
               repo: context.repo.repo,
               issue_number: Number(process.env.ISSUE_NUMBER),
             })).data;
+            const dispatchQueue = async () => {
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'codex-agent-queue.yml',
+                ref: 'main',
+              });
+            };
             const addBlockedLabel = async () => {
               try {
                 await github.rest.issues.createLabel({
@@ -420,6 +453,7 @@ jobs:
             } catch (error) {
               core.warning(`agent-queued konnte nicht entfernt werden: ${error.message}`);
             }
+            await dispatchQueue();
 
   blocked_after_three_attempts:
     name: Block after three attempts
@@ -433,6 +467,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
+      actions: write
       issues: write
     steps:
       - name: Mark issue blocked after maximum attempts
@@ -448,6 +483,14 @@ jobs:
               issue_number: Number(process.env.ISSUE_NUMBER),
             })).data;
             const branch = `codex/agent-${issue.number}`;
+            const dispatchQueue = async () => {
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'codex-agent-queue.yml',
+                ref: 'main',
+              });
+            };
             try {
               await github.rest.issues.createLabel({
                 owner: context.repo.owner,
@@ -471,3 +514,4 @@ jobs:
             } catch (error) {
               core.warning(`agent-queued konnte nach Blockierung nicht entfernt werden: ${error.message}`);
             }
+            await dispatchQueue();
