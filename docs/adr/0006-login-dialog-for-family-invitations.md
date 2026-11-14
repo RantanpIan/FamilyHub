@@ -1,6 +1,6 @@
 # ADR 0006: Einladungsdialog beim Login
 
-- Status: vorgeschlagen und in Umsetzung auf `feature/family-invitations-login-modal`
+- Status: umgesetzt; PR #5 gemergt, Migration auf `Familyhub_dev` angewendet
 - Datum: 2026-11-13
 - Bezug: FH-CX-006-FOLLOWUP
 
@@ -44,13 +44,14 @@ deshalb genau an das eingeladene Auth-Konto gebunden bleiben.
 - Mehrere offene Einladungen werden nacheinander angezeigt. Parallel laufende
   Annahmen werden durch Zeilensperre und bestehende Familien-/Mitgliedsconstraints
   serialisiert.
-- Das Feature benötigt keine Änderung an `Familyhub_dev`. Die neue Migration wird
-  erst nach grünem CI und Review angewendet.
+- Die additive Migration `20261113100213_add_login_invitation_workflow.sql` wurde
+  nach grünem CI, Review und ausdrücklicher Freigabe auf `Familyhub_dev`
+  angewendet. Dabei wurden keine Familien- oder Einladungsdaten verändert.
 
 ## Validierung
 
 Vertrags-/Unit-Tests, RLS-Integrationstests und ein Playwright-Flow prüfen
 Abfrage ohne Token, falsche E-Mail, Mehrfach-/Wiederholungsfälle, Ablehnung,
-Familienwechsel und den mobilen Dialog. Lokale Supabase-Ausführung bleibt ein
-offener Prüfpunkt, solange Docker auf dem Entwicklungsrechner nicht verfügbar ist.
+Familienwechsel und den mobilen Dialog. Die Migration ist im Cloud-Projekt
+registriert; die manuelle Prüfung des bestehenden Patricia-Logins bleibt offen.
 
