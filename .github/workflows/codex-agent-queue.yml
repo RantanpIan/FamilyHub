@@ -1,0 +1,122 @@
+name: Codex agent queue
+
+on:
+  issues:
+    types: [labeled]
+  workflow_run:
+    workflows: ["Codex agent-ready"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: fh-auto-001-queue-dispatch
+  cancel-in-progress: false
+
+jobs:
+  dispatch-next:
+    name: Dispatch next queued issue
+    if: >-
+      (github.event_name == 'issues' &&
+       github.event.action == 'labeled' &&
+       github.event.label.name == 'agent-ready') ||
+      github.event_name == 'workflow_run' ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Select exactly one next issue
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const ensureLabel = async (name, color, description) => {
+              try {
+                await github.rest.issues.createLabel({ owner, repo, name, color, description });
+              } catch (error) {
+                if (error.status !== 422) throw error;
+              }
+            };
+
+            // A completed/cancelled worker releases its queue marker here as a
+            // recovery path, even if its final cleanup job was skipped.
+            if (context.eventName === 'workflow_run') {
+              const branch = context.payload.workflow_run?.head_branch ?? '';
+              const match = branch.match(/^codex\/agent-(\d+)$/);
+              if (match) {
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner,
+                    repo,
+                    issue_number: Number(match[1]),
+                    name: 'agent-queued',
+                  });
+                } catch (error) {
+                  if (error.status !== 404 && error.status !== 422) throw error;
+                }
+              }
+            }
+
+            const active = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: 'open',
+              labels: 'agent-queued',
+              per_page: 100,
+            });
+            if (active.length > 0) {
+              core.notice(`FH-AUTO-001 wartet: Issue #${active[0].number} wird aktuell bearbeitet.`);
+              return;
+            }
+
+            const candidates = (await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: 'open',
+              labels: 'agent-ready',
+              per_page: 100,
+            }))
+              .filter((issue) => !issue.pull_request)
+              .sort((left, right) => left.number - right.number);
+
+            if (candidates.length === 0) {
+              core.notice('FH-AUTO-001: Keine weiteren agent-ready Issues in der Warteschlange.');
+              return;
+            }
+
+            const next = candidates[0];
+            await ensureLabel(
+              'agent-queued',
+              'fbca04',
+              'FH-AUTO-001 wartet auf serielle Bearbeitung',
+            );
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number: next.number,
+              labels: ['agent-queued'],
+            });
+            try {
+              await github.rest.issues.removeLabel({
+                owner,
+                repo,
+                issue_number: next.number,
+                name: 'agent-ready',
+              });
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: next.number,
+              body: `FH-AUTO-001 QUEUED: Issue #${next.number} wurde für die serielle Bearbeitung ausgewählt. Die Reihenfolge wird deterministisch nach aufsteigender Issue-Nummer abgearbeitet. Nach Abschluss wird automatisch der nächste agent-ready Auftrag gestartet. Kein paralleler Agentenlauf und kein automatischer Merge.`,
+            });
+            core.notice(`FH-AUTO-001 gestartet: Issue #${next.number} ist jetzt agent-queued.`);
