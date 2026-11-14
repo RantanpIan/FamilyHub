@@ -17,7 +17,7 @@ jobs:
     if: >-
       github.event_name == 'issues' &&
       github.event.action == 'labeled' &&
-      github.event.label.name == 'agent-ready' &&
+      github.event.label.name == 'agent-queued' &&
       github.event.issue.pull_request == null
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -74,8 +74,10 @@ jobs:
               core.warning(reason);
             };
 
-            if (sender !== owner) {
-              failClosed(`agent-ready wird nur durch den Repository-Eigentümer ausgelöst (Auslöser: ${sender || 'unbekannt'}).`);
+            const queueTriggered = context.payload.label?.name === 'agent-queued';
+            const senderAllowed = sender === owner || (queueTriggered && sender === 'github-actions[bot]');
+            if (!senderAllowed) {
+              failClosed(`agent-queued wird nur durch den Repository-Eigentümer oder den Queue-Dispatcher ausgelöst (Auslöser: ${sender || 'unbekannt'}).`);
               return;
             }
 
@@ -97,9 +99,9 @@ jobs:
                 body: `FH-AUTO-001 blockiert: ${details} Bitte den Auftrag vervollständigen und nach erneuter Prüfung das Label agent-ready erneut setzen.`,
               });
               try {
-                await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, name: 'agent-ready' });
+                await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, name: 'agent-queued' });
               } catch (error) {
-                core.warning(`agent-ready konnte nicht entfernt werden: ${error.message}`);
+                core.warning(`agent-queued konnte nicht entfernt werden: ${error.message}`);
               }
               failClosed(details);
               return;
@@ -121,9 +123,9 @@ jobs:
                 body: `FH-AUTO-001: Es gibt bereits einen offenen PR für ${branch}; kein zweiter Lauf wurde gestartet.`,
               });
               try {
-                await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, name: 'agent-ready' });
+                await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, name: 'agent-queued' });
               } catch (error) {
-                core.warning(`agent-ready konnte nicht entfernt werden: ${error.message}`);
+                core.warning(`agent-queued konnte nicht entfernt werden: ${error.message}`);
               }
               failClosed('Für den deterministischen Agenten-Branch existiert bereits ein offener PR.');
               return;
@@ -266,10 +268,10 @@ jobs:
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   issue_number: issue.number,
-                  name: 'agent-ready',
+                  name: 'agent-queued',
                 });
               } catch (error) {
-                core.warning(`agent-ready konnte nach Blockierung nicht entfernt werden: ${error.message}`);
+                core.warning(`agent-queued konnte nach Blockierung nicht entfernt werden: ${error.message}`);
               }
             };
 
@@ -335,9 +337,9 @@ jobs:
               body: `FH-AUTO-001 erfolgreich übergeben: Draft-PR #${pr.number} auf ${branch}. Bitte CI, Diff, Akzeptanzkriterien und Branch-Regeln manuell prüfen; kein automatischer Merge.`,
             });
             try {
-              await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, name: 'agent-ready' });
+              await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, name: 'agent-queued' });
             } catch (error) {
-              core.warning(`agent-ready konnte nach Draft-PR nicht entfernt werden: ${error.message}`);
+              core.warning(`agent-queued konnte nach Draft-PR nicht entfernt werden: ${error.message}`);
             }
 
   blocked_no_key:
@@ -381,9 +383,9 @@ jobs:
               body: 'FH-AUTO-001 BLOCKED: Das Repository-Secret `OPENAI_API_KEY` ist nicht eingerichtet. Secret manuell hinterlegen, Auftrag erneut prüfen und `agent-ready` danach bewusst erneut setzen.',
             });
             try {
-              await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, name: 'agent-ready' });
+              await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, name: 'agent-queued' });
             } catch (error) {
-              core.warning(`agent-ready konnte nicht entfernt werden: ${error.message}`);
+              core.warning(`agent-queued konnte nicht entfernt werden: ${error.message}`);
             }
 
   blocked_after_three_attempts:
@@ -426,7 +428,7 @@ jobs:
               body: `FH-AUTO-001 BLOCKED: Drei kontrollierte Versuche sind fehlgeschlagen. Der Branch ${branch} bleibt zur manuellen Diagnose erhalten. Prüfe den Workflow-Lauf ${context.runId}, die Artefakte, den Diff und die CI-Fehler; danach Auftrag korrigieren und agent-ready bewusst erneut setzen. Es wurde kein Merge und keine Datenbank-/Cloud-Änderung ausgeführt.`,
             });
             try {
-              await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, name: 'agent-ready' });
+              await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, name: 'agent-queued' });
             } catch (error) {
-              core.warning(`agent-ready konnte nach Blockierung nicht entfernt werden: ${error.message}`);
+              core.warning(`agent-queued konnte nach Blockierung nicht entfernt werden: ${error.message}`);
             }
