@@ -58,7 +58,7 @@ for (const width of [320, 390, 768, 1440]) {
     await page.keyboard.press("Enter");
     await expect(details).toBeFocused();
     await page.getByRole("button", { name: "Nächster Monat" }).click();
-    await expect(page.getByRole("heading", { name: "Dezember 2026" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Dezember 2026", exact: true })).toBeVisible();
     await page.locator(".calendar-month-toolbar").getByRole("button", { name: "Heute", exact: true }).click();
     await expect(page.getByTestId("calendar-day-2026-11-14")).toHaveAttribute("aria-pressed", "true");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
