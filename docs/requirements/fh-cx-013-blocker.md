@@ -3,6 +3,17 @@
 Stand: 14.11.2026. Status: **blockiert; keine Funktionsänderung implementiert**.
 Geprüfter Branch: `codex/agent-19`.
 
+## Erneute Prüfung im aktuellen Agentenlauf
+
+Der Bericht war bereits versioniert vorhanden. Die erneute Repository-Suche
+nach Rollen-/Grant-Matrix und FH-CX-013 hat keine ergänzende freigegebene
+Regelquelle ergeben. Der aktuelle Issue-Text bestätigt die fachliche Freigabe,
+liefert aber weiterhin keine konkrete Matrix oder Quellenreferenz. Der Blocker
+bleibt deshalb bestehen; es wurde keine neue Berechtigungsregel angenommen.
+Die unten aufgeführten Qualitätsbefehle wurden in diesem Lauf erneut mit den
+angegebenen Ergebnissen ausgeführt. Die erfolgreichen Bestandsprüfungen sind
+keine fachliche Abnahme von FH-CX-013.
+
 ## Auftrag und vorhandene Grundlage
 
 Das Kalender-Epic verlangt Sichtbarkeit gemäß einer geprüften Rollen-/Grant-Matrix,
@@ -93,7 +104,7 @@ Die erfolgreichen Bestandsprüfungen sind kein Nachweis der neuen Fachmatrix.
 
 ## Unverändert und nächster Schritt
 
-Nur dieser Bericht wurde ergänzt, uncommitted. Vorhandene unversionierte
+Nur dieser bereits vorhandene Bericht wurde aktualisiert, uncommitted. Vorhandene unversionierte
 Automationsdateien wurden bewahrt. Produktcode, Baseline, Migrationen,
 Schema-/Datenbankdateien, Konfiguration und Workflows bleiben unverändert.
 Keine Datenbankoperation, kein Commit, Push, Merge oder Deployment wurde
