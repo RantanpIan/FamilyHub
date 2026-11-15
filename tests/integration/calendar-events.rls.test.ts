@@ -341,10 +341,10 @@ describe("FH-CX-008 calendar event schema and RLS", () => {
       ...args, p_starts_at: "infinity", p_ends_at: "infinity",
     });
     expect(infinite.error?.code).toBe("P0001");
-    const tooEarly = await owner.client.rpc("create_calendar_event", {
-      ...args, p_starts_at: "0000-12-31T23:00:00Z", p_ends_at: "0001-01-01T01:00:00Z",
+    const tooLate = await owner.client.rpc("create_calendar_event", {
+      ...args, p_starts_at: "9999-12-31T23:00:00Z", p_ends_at: "10000-01-01T01:00:00Z",
     });
-    expect(tooEarly.error?.code).toBe("P0001");
+    expect(tooLate.error?.code).toBe("P0001");
     const invalidAllDay = await owner.client.rpc("create_calendar_event", {
       ...args, p_is_all_day: true, p_starts_at: null, p_ends_at: null,
       p_start_date: "9999-12-30", p_end_date_exclusive: "10000-01-01",
