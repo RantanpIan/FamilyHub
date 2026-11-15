@@ -73,7 +73,7 @@ test.describe("FH-CX-012: calendar series exceptions", () => {
 
       await page.getByRole("navigation", { name: "Mobile Hauptnavigation" })
         .getByRole("button", { name: "Kalender" }).click();
-      await expect(page.getByRole("heading", { name: "Synthetic series exception" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Synthetic series exception", exact: true })).toBeVisible();
       await page.getByRole("button", { name: "Vorkommen ändern" }).click();
       await page.getByLabel("Titel").fill("Synthetic overridden occurrence");
       await page.getByRole("button", { name: "Vorkommen speichern" }).click();
@@ -85,7 +85,7 @@ test.describe("FH-CX-012: calendar series exceptions", () => {
 
       await page.getByRole("button", { name: "Ausnahme bearbeiten" }).click();
       await page.getByRole("button", { name: "Ausnahme zurücksetzen" }).click();
-      await expect(page.getByRole("heading", { name: "Synthetic series exception" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Synthetic series exception", exact: true })).toBeVisible();
     } finally {
       await user.admin.auth.admin.deleteUser(user.userId);
     }
