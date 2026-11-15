@@ -3,6 +3,7 @@ import type { CalendarEntry } from "./calendar-service";
 export function pad2(value: number): string {
   return String(value).padStart(2, "0");
 }
+
 export function localDate(date: Date): string {
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 }
@@ -17,26 +18,99 @@ export function toLocalDateTime(iso: string | null): string {
   return Number.isFinite(date.valueOf()) ? localDateTime(date) : "";
 }
 
-export function oneHourAfter(startValue: string): string {
-  if (!startValue) return "";
-  const date = new Date(startValue);
+function partsInZone(instant: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(instant);
+  const value = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  return {
+    year: value("year"), month: value("month"), day: value("day"),
+    hour: value("hour"), minute: value("minute"),
+  };
+}
+
+function utcMillis(year: number, month: number, day: number, hour: number, minute: number): number {
+  const value = new Date(0);
+  value.setUTCFullYear(year, month - 1, day);
+  value.setUTCHours(hour, minute, 0, 0);
+  return value.getTime();
+}
+
+function zoneOffsetMillis(instant: Date, timeZone: string): number {
+  const parts = partsInZone(instant, timeZone);
+  return utcMillis(
+    Number(parts.year), Number(parts.month), Number(parts.day),
+    Number(parts.hour), Number(parts.minute),
+  ) - instant.getTime();
+}
+
+export function toLocalDateTimeInZone(iso: string | null, timeZone: string): string {
+  if (!iso) return "";
+  const date = new Date(iso);
   if (!Number.isFinite(date.valueOf())) return "";
-  date.setMinutes(date.getMinutes() + 60);
-  return localDateTime(date);
+  try {
+    const parts = partsInZone(date, timeZone);
+    return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+  } catch {
+    return "";
+  }
+}
+
+/** Converts a datetime-local wall-clock value in an IANA zone to an instant.
+ * A DST-gap value is rejected instead of silently normalizing to another time.
+ * For a repeated local time the earlier occurrence is selected deterministically.
+ */
+export function zonedDateTimeToIso(value: string, timeZone: string): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+  if (!match) return null;
+  const [, year, month, day, hour, minute] = match;
+  const wallMillis = utcMillis(Number(year), Number(month), Number(day), Number(hour), Number(minute));
+  if (!Number.isFinite(wallMillis)) return null;
+  let offsets: number[];
+  try {
+    offsets = [-24, -12, 0, 12, 24].map(
+      (hours) => zoneOffsetMillis(new Date(wallMillis + hours * 60 * 60 * 1000), timeZone),
+    );
+  } catch {
+    return null;
+  }
+  const candidates = [...new Set(offsets)].map((offset) => wallMillis - offset)
+    .filter((candidate) => {
+      if (!Number.isFinite(candidate)) return false;
+      return toLocalDateTimeInZone(new Date(candidate).toISOString(), timeZone) === value;
+    });
+  if (candidates.length === 0) return null;
+  return new Date(Math.min(...candidates)).toISOString();
+}
+
+export function oneHourAfter(startValue: string, timeZone?: string): string {
+  if (!startValue) return "";
+  const iso = timeZone ? zonedDateTimeToIso(startValue, timeZone) : startValue;
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (!Number.isFinite(date.valueOf())) return "";
+  date.setTime(date.getTime() + 60 * 60 * 1000);
+  return timeZone ? toLocalDateTimeInZone(date.toISOString(), timeZone) : localDateTime(date);
 }
 
 export function adjustEndAfterStart(
   startValue: string,
   endValue: string,
   endWasManuallyEdited: boolean,
+  timeZone?: string,
 ): string {
-  const defaultEnd = oneHourAfter(startValue);
+  const defaultEnd = oneHourAfter(startValue, timeZone);
   if (!defaultEnd) return endValue;
+  const startInstant = timeZone ? zonedDateTimeToIso(startValue, timeZone) : startValue;
+  const endInstant = timeZone ? zonedDateTimeToIso(endValue, timeZone) : endValue;
   if (
     !endWasManuallyEdited
     || !endValue
-    || !Number.isFinite(new Date(endValue).getTime())
-    || new Date(endValue).getTime() <= new Date(startValue).getTime()
+    || !startInstant || !endInstant
+    || !Number.isFinite(new Date(endInstant).getTime())
+    || new Date(endInstant).getTime() <= new Date(startInstant).getTime()
   ) {
     return defaultEnd;
   }
@@ -64,58 +138,13 @@ export function monthCells(year: number, monthIndex: number): string[] {
 
 export function dateInZone(instant: string | number, timeZone: string): string {
   const date = new Date(instant);
+  if (!Number.isFinite(date.valueOf())) return "";
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone,
     year: "numeric", month: "2-digit", day: "2-digit",
   }).formatToParts(date);
   const value = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
   return `${value("year")}-${value("month")}-${value("day")}`;
-}
-
-export function dateTimeInputInZone(instant: string | null, timeZone: string): string {
-  if (!instant) return "";
-  const date = new Date(instant);
-  if (!Number.isFinite(date.valueOf())) return "";
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(date);
-  const value = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
-  return `${value("year")}-${value("month")}-${value("day")}T${value("hour")}:${value("minute")}`;
-}
-
-export function dateTimeInputToIso(value: string, timeZone: string): string | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
-  if (!match) return null;
-  const [, year, month, day, hour, minute] = match;
-  const naiveUtc = Date.UTC(
-    Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), 0,
-  );
-  if (!Number.isFinite(naiveUtc)) return null;
-
-  function offsetAt(instant: number): number {
-    const parts = new Intl.DateTimeFormat("en-GB", {
-      timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hourCycle: "h23",
-    }).formatToParts(new Date(instant));
-    const part = (type: string) => Number(parts.find((item) => item.type === type)?.value);
-    return Date.UTC(part("year"), part("month") - 1, part("day"), part("hour"), part("minute"), part("second")) - instant;
-  }
-
-  const first = naiveUtc - offsetAt(naiveUtc);
-  const corrected = naiveUtc - offsetAt(first);
-  return new Date(corrected).toISOString();
 }
 
 export function eventOnDay(
@@ -131,11 +160,21 @@ export function eventOnDay(
     const start = dateInZone(event.starts_at, event.time_zone);
     // End instant is exclusive: an event ending at midnight does not
     // occupy the following local calendar date.
-    const end = dateInZone(Date.parse(event.ends_at) - 1, event.time_zone);
+    const endInstant = Date.parse(event.ends_at);
+    if (!start || !Number.isFinite(endInstant)) return false;
+    const end = dateInZone(endInstant - 1, event.time_zone);
     return start <= day && day <= end;
   } catch {
     return false;
   }
+}
+
+export function calendarEntryStartMillis(entry: Pick<CalendarEntry, "is_all_day" | "start_date" | "starts_at">): number {
+  const value = entry.is_all_day
+    ? entry.start_date ? `${entry.start_date}T00:00:00Z` : ""
+    : entry.starts_at ?? "";
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : Number.POSITIVE_INFINITY;
 }
 
 export function dayLabel(day: string): string {
@@ -145,4 +184,3 @@ export function dayLabel(day: string): string {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   }).format(date);
 }
-

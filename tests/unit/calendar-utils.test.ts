@@ -6,6 +6,8 @@ import {
   monthCells,
   nextLocalDate,
   oneHourAfter,
+  toLocalDateTimeInZone,
+  zonedDateTimeToIso,
 } from "../../apps/client/src/calendar/calendar-utils";
 
 describe("calendar date helpers", () => {
@@ -85,5 +87,17 @@ describe("calendar date helpers", () => {
     expect(eventOnDay(event, "2026-10-26")).toBe(false);
     expect(monthCells(2027, 0)[0]).toBe("2026-12-28");
     expect(monthCells(2028, 1)).toContain("2028-02-29");
+  });
+
+  it("bearbeitet Zeiten in der Ereigniszeitzone statt in der Browserzeitzone", () => {
+    const iso = zonedDateTimeToIso("2026-11-15T10:30", "Europe/Berlin");
+    expect(iso).toBe("2026-11-15T09:30:00.000Z");
+    expect(toLocalDateTimeInZone(iso, "Europe/Berlin")).toBe("2026-11-15T10:30");
+    expect(oneHourAfter("2026-11-15T10:30", "Europe/Berlin")).toBe("2026-11-15T11:30");
+  });
+
+  it("weist nicht existente lokale Zeiten beim Frühjahrswechsel zurück", () => {
+    expect(zonedDateTimeToIso("2026-03-29T02:30", "Europe/Berlin")).toBeNull();
+    expect(zonedDateTimeToIso("2026-10-25T02:30", "Europe/Berlin")).toBe("2026-10-25T00:30:00.000Z");
   });
 });

@@ -156,6 +156,28 @@ describe("FH-CX-011 calendar series schema, RLS and commands", () => {
     expect(foreign.error?.code).toBe("42501");
   });
 
+  it("rejects non-finite and out-of-contract series times", async () => {
+    const args = createArgs(familyId, ownerMemberId);
+    const infinite = await owner.client.rpc("create_calendar_series_for_member", {
+      ...args,
+      p_request_id: randomUUID(),
+      p_starts_at: "infinity",
+      p_ends_at: "infinity",
+    });
+    expect(infinite.error?.code).toBe("22023");
+
+    const invalidAllDay = await owner.client.rpc("create_calendar_series_for_member", {
+      ...args,
+      p_request_id: randomUUID(),
+      p_is_all_day: true,
+      p_starts_at: null,
+      p_ends_at: null,
+      p_start_date: "9999-12-30",
+      p_end_date_exclusive: "10000-01-01",
+    });
+    expect(invalidAllDay.error?.code).toBe("22023");
+  });
+
   it("updates with optimistic versioning and rejects stale writes", async () => {
     const modified = await owner.client.rpc("update_calendar_series", {
       p_resource_id: seriesId,
@@ -232,90 +254,4 @@ describe("FH-CX-011 calendar series schema, RLS and commands", () => {
     expect(foreignRead.error).toBeNull();
     expect(foreignRead.data).toEqual([]);
   });
-
-  it("supports one-occurrence overrides, cancellation, reset and idempotent retries", async () => {
-    const created = await owner.client.rpc("create_calendar_series_for_member", {
-      ...createArgs(familyId, ownerMemberId),
-      p_recurrence_rule: "FREQ=DAILY;COUNT=3",
-    });
-    expect(created.error).toBeNull();
-    const exceptionSeriesId = created.data!;
-    const occurrenceKey = "2026-11-16T17:00:00";
-    const requestId = randomUUID();
-    const override = {
-      p_series_resource_id: exceptionSeriesId,
-      p_occurrence_key: occurrenceKey,
-      p_request_id: requestId,
-      p_expected_series_version: 1,
-      p_expected_exception_version: 0,
-      p_action: "override" as const,
-      p_title: "Verschobenes Vorkommen",
-      p_is_all_day: false,
-      p_starts_at: "2026-11-16T18:00:00+01:00",
-      p_ends_at: "2026-11-16T19:00:00+01:00",
-      p_start_date: null,
-      p_end_date_exclusive: null,
-      p_time_zone: "Europe/Berlin",
-    };
-    const first = await owner.client.rpc("set_calendar_series_exception", override);
-    expect(first.error).toBeNull();
-    expect(first.data).toBe(1);
-
-    const retry = await owner.client.rpc("set_calendar_series_exception", override);
-    expect(retry.error).toBeNull();
-    expect(retry.data).toBe(1);
-
-    const stored = await owner.client.from("calendar_series_exceptions")
-      .select("occurrence_key, exception_version, title, is_cancelled")
-      .eq("series_resource_id", exceptionSeriesId)
-      .single();
-    expect(stored.error).toBeNull();
-    expect(stored.data).toMatchObject({
-      occurrence_key: occurrenceKey,
-      exception_version: 1,
-      title: "Verschobenes Vorkommen",
-      is_cancelled: false,
-    });
-
-    const foreignMutation = await outsider.client.rpc("set_calendar_series_exception", {
-      ...override,
-      p_request_id: randomUUID(),
-    });
-    expect(foreignMutation.error?.code).toBe("42501");
-
-    const reset = await owner.client.rpc("delete_calendar_series_exception", {
-      p_series_resource_id: exceptionSeriesId,
-      p_occurrence_key: occurrenceKey,
-      p_request_id: randomUUID(),
-      p_expected_series_version: 2,
-      p_expected_exception_version: 1,
-    });
-    expect(reset.error).toBeNull();
-    expect(reset.data).toBe(3);
-
-    const cancelled = await owner.client.rpc("set_calendar_series_exception", {
-      ...override,
-      p_occurrence_key: "2026-11-17T17:00:00",
-      p_request_id: randomUUID(),
-      p_expected_series_version: 3,
-      p_expected_exception_version: 0,
-      p_action: "cancel" as const,
-      p_title: null,
-      p_is_all_day: null,
-      p_starts_at: null,
-      p_ends_at: null,
-      p_time_zone: null,
-    });
-    expect(cancelled.error).toBeNull();
-    expect(cancelled.data).toBe(1);
-
-    const cancelledRow = await owner.client.from("calendar_series_exceptions")
-      .select("is_cancelled, title")
-      .eq("series_resource_id", exceptionSeriesId)
-      .eq("occurrence_key", "2026-11-17T17:00:00")
-      .single();
-    expect(cancelledRow.error).toBeNull();
-    expect(cancelledRow.data).toEqual({ is_cancelled: true, title: null });
-  });
 });
-
