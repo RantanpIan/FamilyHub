@@ -10,7 +10,7 @@ Der bisherige Einladungsfluss setzte einen URL-Token, eine sichtbare `/invite`-R
 und damit eine für lokale Umgebungen fehleranfällige Linkbestätigung voraus. Das
 führte dazu, dass ein bereits verifiziertes Konto trotz gültiger Einladung keine
 sichtbare Einladung erhielt. In `Familyhub_dev` bestehen aktuell zwei getrennte
-aktive Familien mit dem Namen „Wiecha“; die offene Einladung für Patricia muss
+aktive Familien mit synthetischen Namen; die offene Einladung für Mitglied A muss
 deshalb genau an das eingeladene Auth-Konto gebunden bleiben.
 
 ## Entscheidung für den Follow-up-Umfang
@@ -53,5 +53,5 @@ deshalb genau an das eingeladene Auth-Konto gebunden bleiben.
 Vertrags-/Unit-Tests, RLS-Integrationstests und ein Playwright-Flow prüfen
 Abfrage ohne Token, falsche E-Mail, Mehrfach-/Wiederholungsfälle, Ablehnung,
 Familienwechsel und den mobilen Dialog. Die Migration ist im Cloud-Projekt
-registriert; die manuelle Prüfung des bestehenden Patricia-Logins bleibt offen.
+registriert; die manuelle Prüfung des bestehenden Testkonto-Logins bleibt offen.
 
