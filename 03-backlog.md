@@ -29,7 +29,7 @@ Keine Story allein aufgrund eines grünen Builds auf „getestet“ setzen. Kein
 | Bereich (Epic-Gruppe) | Codex-Aufträge | Inhalt | Gesamtstatus |
 | --- | --- | --- | --- |
 | Foundation | `FH-CX-001`–`007` | Repository, Basistechnik, Identitäten, Zugriffe und Grundlagen | `001`–`004` abgeschlossen; `005` in Umsetzung; übrige nicht verifiziert |
-| Kalender | `FH-CX-008`–`016` | Kalenderdomäne, Serien/Ausnahmen und nutzbare Terminabläufe | Nicht verifiziert |
+| Kalender | `FH-CX-008`–`016` | Kalenderdomäne, Serien/Ausnahmen und nutzbare Terminabläufe | `008`–`009` implementiert und gemergt; `010`–`012` in offenem PR; `013` blockiert/offen; übrige nicht verifiziert |
 | Push | `FH-CX-017`–`021` | Erinnerungen, Empfänger, Zustellung und Sicherheitsmechanismen | Nicht verifiziert |
 | Schule | `FH-CX-022`–`026` | Schulprofil, Stundenplan, Gültigkeit und Kalenderprojektionen | Nicht verifiziert |
 | Import | `FH-CX-027`–`031` | Upload, Extraktion, Prüfung und Veröffentlichung | Nicht verifiziert |
@@ -51,10 +51,10 @@ Die Sammelbezeichnungen der Gruppen sind **keine** rekonstruierten Originaltitel
 | FH-CX-006 | Identity / Family / Access | **Familieneinladungen, Mitgliedschaften und Rollenverwaltung** | **Lokal umgesetzt und validiert; Rollenänderungen nach FH-OPEN-001 gesperrt; GitHub Actions nicht bestätigt** |
 | FH-CX-006-FOLLOWUP | Identity / Family / Access | **Emailgebundener Einladungsdialog beim Login** | **In Umsetzung auf eigenem Feature-Branch; CI/Review offen** |
 | FH-CX-007 | Foundation | **Responsive AppShell und Navigation (vorläufiger Entwicklungsumfang)** | **In Umsetzung auf feature/fh-cx-007-responsive-appshell; Tests noch nicht bestätigt** |
-| FH-CX-008 | Kalender | Originalauftrag ergänzen | Nicht verifiziert |
-| FH-CX-009 | Kalender | Originalauftrag ergänzen | Nicht verifiziert |
+| FH-CX-008 | Kalender | Originalauftrag ergänzen | Implementierungs-PR #2 gemergt; GitHub-Issue #2 geschlossen; Cloud-/fachliche Abnahme separat nachweisen |
+| FH-CX-009 | Kalender | Originalauftrag ergänzen | Implementierungs-PR #3 gemergt; GitHub-Issue #3 geschlossen; Cloud-/fachliche Abnahme separat nachweisen |
 | FH-CX-010 | Kalender | Originalauftrag ergänzen | Nicht verifiziert |
-| FH-CX-011 | Kalender | Originalauftrag ergänzen | Nicht verifiziert |
+| FH-CX-011 | Kalender | Serientermine und Wiederholungsregeln | Lokal implementiert; Typecheck, Lint, Unit und Build grün; Migration/RLS noch nicht gegen eine lokale Supabase-Testinstanz verifiziert |
 | FH-CX-012 | Kalender | Originalauftrag ergänzen | Nicht verifiziert |
 | FH-CX-013 | Kalender | Originalauftrag ergänzen | Nicht verifiziert |
 | FH-CX-014 | Kalender | Originalauftrag ergänzen | Nicht verifiziert |
@@ -95,7 +95,7 @@ werden. Kein Eintrag ist dadurch `agent-ready`.
 | FH-CX-008 | Kalender-Datenmodell für Einzeltermine und private Sichtbarkeit | Dokumentierter Teilumfang in Abschnitt 10; Serien, Teilnehmer, Push und Lernplan ausgeschlossen | Teilumfang dokumentiert; vollständiger Originalauftrag offen |
 | FH-CX-009 | Nutzbare Einzeltermine: Erstellen, Ändern, Löschen und Anzeigen | Dokumentierter Teilumfang in Abschnitt 11; Serien, Push, Import und Lernplan ausgeschlossen | Teilumfang dokumentiert; vollständiger Originalauftrag offen |
 | FH-CX-010 | Kalenderansichten und Navigation | Kalender-Baseline; konkrete Ansichten und Akzeptanzkriterien fehlen | Vorschlag; Originalauftrag offen |
-| FH-CX-011 | Serientermine und Wiederholungsregeln | Kalender-Baseline; Regelnotation und Änderungssemantik sind offen | Vorschlag; Originalauftrag/Entscheidung offen |
+| FH-CX-011 | Serientermine und Wiederholungsregeln | Begrenzter RFC-5545-Ausschnitt; ADR 0007 | Lokal implementiert; Datenbank-/RLS-Abnahme und Cloud-Anwendung offen |
 | FH-CX-012 | Ausnahmen und einzelne Vorkommen von Serienterminen | Abhängigkeiten aus dem Register; genaue Serienlogik fehlt | Vorschlag; Originalauftrag/Abhängigkeit offen |
 | FH-CX-013 | Kalenderfreigaben und fachliche Terminbeteiligung | Gemeinsame/private Sichtbarkeit; Rollen- und Teilnehmermatrix offen | Vorschlag; Originalauftrag/Rechtematrix offen |
 | FH-CX-014 | Zeitzonen, Ganztag und Sommerzeit | Kalender-Baseline; verbindliche Zeitkonvention offen | Vorschlag; Originalauftrag/Entscheidung offen |
@@ -234,7 +234,7 @@ Diese nachträgliche Notiz ersetzt nicht das ursprüngliche Auftragspaket. Früh
 
 ## 10. FH-CX-008 – Start des Kalender-Datenmodells (12.11.2026)
 
-**Status:** In Umsetzung auf `feature/fh-cx-008-calendar-foundation`; Prüfungen und Abnahme offen.
+**Status:** Implementierungs-PR #2 am 12.11.2026 gemergt; GitHub-Issue #2 geschlossen. Die Cloud-/fachliche Abnahme und die ausdrücklich ausgeschlossene Kalender-UI bleiben separat zu prüfen.
 
 **Implementierungsinkrement:** Eine additive Migration mit `calendar_events`
 für reale Einzeltermine (zeitgebunden oder ganztägig), zusammengesetzt
@@ -258,7 +258,7 @@ Cloud-Projekt ohne explizite Freigabe. Anschließend Code-Review und PR.
 
 ## 11. FH-CX-009 – Nutzbare Einzeltermine (inkrementell, 12.11.2026)
 
-**Status:** In Umsetzung auf `feature/fh-cx-009-calendar-event-crud`; Originalauftragstext nicht vorhanden, daher ist dies ein nachprüfbarer **Teilumfang**, kein Ersatz für die historische vollständige Story.
+**Status:** Implementierungs-PR #3 am 12.11.2026 gemergt; GitHub-Issue #3 geschlossen. Originalauftragstext nicht vorhanden, daher bleibt dies ein nachprüfbarer **Teilumfang**, kein Ersatz für die historische vollständige Story. Cloud-/UI-Abnahme bleibt separat offen.
 
 **Ziel:** Angemeldete Familienmitglieder können eigene einzelne Kalendertermine anlegen, ändern, löschen und die für sie lesbaren Termine ihrer aktiven Familie sehen.
 
