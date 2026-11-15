@@ -1,16 +1,45 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { EmptyState, ErrorState, LoadingState } from "@familyhub/ui";
-import type { FamilyMember } from "@familyhub/contracts";
+import {
+  GrantResourceReadInputSchema,
+  type FamilyMember,
+  type ResourceGrant,
+  type ResourceVisibility,
+} from "@familyhub/contracts";
 import { getErrorMessage } from "../auth/auth-utils";
 import { useFamily } from "../family/useFamily";
 import {
+  grantResourceRead,
+  listResourceGrants,
+  revokeResourceRead,
+  setResourceVisibility,
+} from "../access/resource-access-service";
+import {
   createCalendarEvent,
   deleteCalendarEvent,
+  listCalendarSeries,
+  listCalendarSeriesExceptions,
+  listCalendarSeriesOccurrences,
   listCalendarEvents,
   updateCalendarEvent,
   type CalendarEntry,
   type CalendarEventInput,
+  type CalendarSeriesEntry,
+  type CalendarSeriesException,
+  type CalendarSeriesOccurrence,
 } from "./calendar-service";
+import { CalendarSeriesExceptionEditor } from "./CalendarSeriesExceptionEditor";
+import {
+  describeSeriesOccurrence,
+  effectiveSeriesOccurrence,
+  seriesOccurrenceOnDay,
+  type CalendarSeriesOccurrenceView,
+} from "./calendar-series-exception-utils";
+import {
+  activeCalendarGrantMemberIds,
+  eligibleCalendarGrantMembers,
+} from "./calendar-sharing";
+import "./calendar-sharing.css";
 
 import {
   adjustEndAfterStart,
@@ -21,14 +50,6 @@ import {
   nextLocalDate,
   toLocalDateTime,
 } from "./calendar-utils";
-
-function calendarLoadError(error: unknown): string {
-  const code = typeof error === "object" && error !== null && "code" in error ? error.code : null;
-  if (code === "42501" || code === "PGRST301" || code === "PGRST302") {
-    return "Kein Zugriff auf den Kalender. Bitte prüfe deine Anmeldung und Familienzugehörigkeit.";
-  }
-  return "Termine konnten nicht geladen werden. Bitte versuche es erneut.";
-}
 
 function describeEvent(event: CalendarEntry): string {
   if (event.is_all_day) {
@@ -46,7 +67,6 @@ function describeEvent(event: CalendarEntry): string {
     return "Terminzeit nicht darstellbar";
   }
 }
-
 function CalendarEditor({
   familyId,
   ownerMemberId,
@@ -261,24 +281,21 @@ function CalendarEditor({
     </section>
   );
 }
-
 export function CalendarPage() {
-  const { selectedFamily } = useFamily();
-  return <FamilyCalendar key={(selectedFamily?.family_id ?? "none") + ":" + (selectedFamily?.member_id ?? "none")} />;
-}
-
-function FamilyCalendar() {
   const { selectedFamily, members } = useFamily();
   const familyId = selectedFamily?.family_id ?? null;
   const ownerMemberId = selectedFamily?.member_id ?? null;
-  const [loadedEvents, setEvents] = useState<CalendarEntry[]>([]);
+  const [events, setEvents] = useState<CalendarEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [editing, setEditing] = useState<CalendarEntry | null>(null);
   const [showEditor, setShowEditor] = useState(false);
-  const [revision, setRevision] = useState(0);
+  const [seriesOccurrences, setSeriesOccurrences] = useState<CalendarSeriesOccurrenceView[]>([]);
+  const [seriesLoading, setSeriesLoading] = useState(true);
+  const [seriesError, setSeriesError] = useState<string | null>(null);
+  const [editingSeriesOccurrence, setEditingSeriesOccurrence] = useState<CalendarSeriesOccurrenceView | null>(null);
   const [detail, setDetail] = useState<CalendarEntry | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -286,7 +303,15 @@ function FamilyCalendar() {
   const detailHeading = useRef<HTMLHeadingElement>(null);
   const detailTrigger = useRef<HTMLButtonElement | null>(null);
   const restoreDetailFocus = useRef(false);
-  const events = loading || loadError ? [] : loadedEvents;
+  const [sharing, setSharing] = useState<{
+    resourceId: string;
+    grants: ResourceGrant[];
+    loading: boolean;
+    pendingMemberId: string | null;
+    pendingVisibility: boolean;
+    error: string | null;
+  } | null>(null);
+  const [revision, setRevision] = useState(0);
   const today = localDate(new Date());
   const [selectedDay, setSelectedDay] = useState(today);
   const [displayMonth, setDisplayMonth] = useState(
@@ -295,6 +320,9 @@ function FamilyCalendar() {
   const monthKey = localDate(displayMonth).slice(0, 7);
   const days = monthCells(displayMonth.getFullYear(), displayMonth.getMonth());
   const selectedEvents = events.filter((event) => eventOnDay(event, selectedDay));
+  const selectedSeriesOccurrences = seriesOccurrences.filter((view) =>
+    seriesOccurrenceOnDay(view, selectedDay),
+  );
   const monthLabel = new Intl.DateTimeFormat("de-DE", {
     month: "long",
     year: "numeric",
@@ -302,6 +330,9 @@ function FamilyCalendar() {
 
   useEffect(() => {
     let active = true;
+    setEvents([]);
+    setLoading(Boolean(familyId));
+    setLoadError(null);
     if (!familyId) return;
     void listCalendarEvents(familyId)
       .then((rows) => {
@@ -314,12 +345,60 @@ function FamilyCalendar() {
       .catch((error: unknown) => {
         if (active) {
           setLoading(false);
-          setLoadError(calendarLoadError(error));
+          setLoadError(getErrorMessage(error));
           setEvents([]);
         }
       });
     return () => { active = false; };
-  }, [familyId, revision]);
+  }, [familyId, ownerMemberId, revision]);
+
+  useEffect(() => {
+    let active = true;
+    setSeriesOccurrences([]);
+    setSeriesLoading(Boolean(familyId));
+    setSeriesError(null);
+    const rangeDays = monthCells(displayMonth.getFullYear(), displayMonth.getMonth());
+    const rangeStart = rangeDays.at(0);
+    const rangeEnd = rangeDays.at(-1);
+    if (!familyId || !rangeStart || !rangeEnd) return;
+    void Promise.all([
+      listCalendarSeries(familyId),
+      listCalendarSeriesOccurrences(familyId, rangeStart, rangeEnd),
+    ])
+      .then(async ([series, occurrences]) => {
+        const exceptions = await Promise.all(
+          series.map(async (item) => [
+            item.resource_id,
+            await listCalendarSeriesExceptions(item.resource_id),
+          ] as const),
+        );
+        const exceptionMap = new Map<string, CalendarSeriesException[]>(exceptions);
+        const seriesMap = new Map<string, CalendarSeriesEntry>(
+          series.map((item) => [item.resource_id, item]),
+        );
+        const views = occurrences.flatMap((occurrence: CalendarSeriesOccurrence) => {
+          const seriesEntry = seriesMap.get(occurrence.series_resource_id);
+          if (!seriesEntry) return [];
+          const exception = exceptionMap.get(seriesEntry.resource_id)?.find(
+            (item) => item.occurrence_key === occurrence.occurrence_key,
+          ) ?? null;
+          return [{ series: seriesEntry, occurrence, exception }];
+        });
+        if (active) {
+          setSeriesOccurrences(views);
+          setSeriesError(null);
+          setSeriesLoading(false);
+        }
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setSeriesOccurrences([]);
+          setSeriesError(getErrorMessage(error));
+          setSeriesLoading(false);
+        }
+      });
+    return () => { active = false; };
+  }, [familyId, ownerMemberId, monthKey, revision, displayMonth]);
 
   useEffect(() => {
     if (detail || detailLoading || detailError) {
@@ -350,7 +429,7 @@ function FamilyCalendar() {
     } catch (error) {
       if (request !== detailRequest.current) return;
       setEvents([]);
-      setDetailError(calendarLoadError(error));
+      setDetailError(getErrorMessage(error));
     } finally {
       if (request === detailRequest.current) setDetailLoading(false);
     }
@@ -367,12 +446,18 @@ function FamilyCalendar() {
   function reload() {
     closeDetail();
     setLoading(true);
+    setSeriesLoading(true);
     setRevision((previous) => previous + 1);
   }
 
   function onSaved() {
     setEditing(null);
     setShowEditor(false);
+    reload();
+  }
+
+  function onSeriesExceptionSaved() {
+    setEditingSeriesOccurrence(null);
     reload();
   }
 
@@ -410,8 +495,92 @@ function FamilyCalendar() {
     return members.find((member) => member.member_id === id)?.display_name ?? "Familienmitglied";
   }
 
+  async function openSharing(entry: CalendarEntry) {
+    if (sharing?.resourceId === entry.resource_id) {
+      setSharing(null);
+      return;
+    }
+
+    setSharing({
+      resourceId: entry.resource_id,
+      grants: [],
+      loading: true,
+      pendingMemberId: null,
+      pendingVisibility: false,
+      error: null,
+    });
+    try {
+      const grants = await listResourceGrants(entry.resource_id);
+      setSharing((current) =>
+        current?.resourceId === entry.resource_id
+          ? { ...current, grants, loading: false }
+          : current,
+      );
+    } catch (error) {
+      setSharing((current) =>
+        current?.resourceId === entry.resource_id
+          ? { ...current, loading: false, error: getErrorMessage(error) }
+          : current,
+      );
+    }
+  }
+
+  async function changeVisibility(entry: CalendarEntry, visibility: ResourceVisibility) {
+    setSharing((current) =>
+      current?.resourceId === entry.resource_id
+        ? { ...current, pendingVisibility: true, error: null }
+        : current,
+    );
+    try {
+      await setResourceVisibility({
+        resourceId: entry.resource_id,
+        visibility,
+        expectedVersion: entry.resource.version,
+      });
+      setSharing(null);
+      reload();
+    } catch (error) {
+      setSharing((current) =>
+        current?.resourceId === entry.resource_id
+          ? { ...current, pendingVisibility: false, error: getErrorMessage(error) }
+          : current,
+      );
+    }
+  }
+
+  async function changeGrant(entry: CalendarEntry, memberId: string, enabled: boolean) {
+    setSharing((current) =>
+      current?.resourceId === entry.resource_id
+        ? { ...current, pendingMemberId: memberId, error: null }
+        : current,
+    );
+    try {
+      const input = GrantResourceReadInputSchema.parse({
+        resourceId: entry.resource_id,
+        granteeMemberId: memberId,
+      });
+      if (enabled) {
+        await grantResourceRead(input);
+      } else {
+        await revokeResourceRead(input);
+      }
+      const grants = await listResourceGrants(entry.resource_id);
+      setSharing((current) =>
+        current?.resourceId === entry.resource_id
+          ? { ...current, grants, pendingMemberId: null }
+          : current,
+      );
+    } catch (error) {
+      setSharing((current) =>
+        current?.resourceId === entry.resource_id
+          ? { ...current, pendingMemberId: null, error: getErrorMessage(error) }
+          : current,
+      );
+    }
+  }
+
   if (!familyId || !ownerMemberId) {
-    return <ErrorState title="Kein Zugriff auf den Kalender" description="Bitte wähle eine berechtigte Familie aus." />;
+    return <LoadingState label="Familienkalender wird vorbereitet" />;
   }
 
   return (
@@ -469,6 +638,14 @@ function FamilyCalendar() {
           }}
         />
       )}
+      {editingSeriesOccurrence && (
+        <CalendarSeriesExceptionEditor
+          key={`${editingSeriesOccurrence.series.resource_id}-${editingSeriesOccurrence.occurrence.occurrence_key}`}
+          view={editingSeriesOccurrence}
+          onSaved={onSeriesExceptionSaved}
+          onCancel={() => setEditingSeriesOccurrence(null)}
+        />
+      )}
 
       <section className="calendar-month" aria-label="Monatskalender">
         <div className="calendar-month-toolbar">
@@ -476,7 +653,7 @@ function FamilyCalendar() {
             onClick={() => shiftMonth(-1)}>
             ‹
           </button>
-          <h3 aria-live="polite">{monthLabel}</h3>
+          <h3>{monthLabel}</h3>
           <button className="text-button" type="button" aria-label="Nächster Monat"
             onClick={() => shiftMonth(1)}>
             ›
@@ -511,7 +688,7 @@ function FamilyCalendar() {
                   isToday ? "is-today" : "",
                   isSelected ? "is-selected" : "",
                 ].filter(Boolean).join(" ")}
-                aria-label={dayLabel(day) + (loading || loadError ? ", Termine noch nicht verfügbar" : dayEvents.length ? ", " + dayEvents.length + " Termine" : ", keine Termine")}
+                aria-label={dayLabel(day) + (dayEvents.length ? ", " + dayEvents.length + " Termine" : ", keine Termine")}
                 aria-pressed={isSelected}
                 data-testid={"calendar-day-" + day}
                 onClick={() => selectDay(day)}
@@ -542,52 +719,157 @@ function FamilyCalendar() {
 
       <section className="calendar-selected-day" aria-labelledby="calendar-selected-title">
         <div className="section-heading">
-          <h3 id="calendar-selected-title" tabIndex={-1}>{dayLabel(selectedDay)}</h3>
-          {!loading && !loadError && <span className="calendar-count">
-            {selectedEvents.length} {selectedEvents.length === 1 ? "Termin" : "Termine"}
-          </span>}
+          <h3 id="calendar-selected-title">{dayLabel(selectedDay)}</h3>
+          <span className="calendar-count">
+            {selectedEvents.length + selectedSeriesOccurrences.length} {
+              selectedEvents.length + selectedSeriesOccurrences.length === 1 ? "Termin" : "Termine"
+            }
+          </span>
         </div>
-        {loading ? (
+        {loading || seriesLoading ? (
           <LoadingState label="Termine werden geladen" />
-        ) : selectedEvents.length === 0 && !loadError ? (
+        ) : selectedEvents.length === 0 && selectedSeriesOccurrences.length === 0 && !loadError && !seriesError ? (
           <EmptyState title="Keine Termine an diesem Tag"
             description="Wähle einen anderen Tag oder lege einen Termin an." />
         ) : (
-          <ul className="calendar-event-list" aria-label="Termine am ausgewählten Tag">
-            {selectedEvents.map((entry) => {
-              const isOwner = entry.resource.owner_member_id === ownerMemberId;
-              return (
-                <li className="calendar-event-card" key={entry.resource_id}>
-                  <div className="calendar-event-content">
-                    <span className="calendar-event-meta">
-                      {entry.resource.visibility === "private" ? "Privat" : "Familie"}
-                      {" · Termin für " + subjectName(entry)}
-                    </span>
-                    <h3>{entry.title}</h3>
-                    <p>{describeEvent(entry)}</p>
-                  </div>
-                  <button className="text-button" type="button"
-                    aria-label={"Details zu „" + entry.title + "“"}
-                    onClick={(event) => void openDetail(entry, event.currentTarget)}>Details</button>
-                  {isOwner && (
-                    <div className="calendar-actions">
-                      <button className="text-button" type="button"
-                        onClick={() => { setEditing(entry); setShowEditor(true); }}>
-                        Bearbeiten
-                      </button>
-                      <button className="text-button" type="button"
-                        disabled={pendingDelete === entry.resource_id}
-                        onClick={() => void remove(entry)}>
-                        {pendingDelete === entry.resource_id ? "Wird gelöscht …" : "Löschen"}
-                      </button>
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+          <>
+            {seriesError && <ErrorState title="Serientermine konnten nicht geladen werden" description={seriesError} />}
+            {selectedEvents.length > 0 && (
+              <ul className="calendar-event-list" aria-label="Einzeltermine am ausgewählten Tag">
+                {selectedEvents.map((entry) => {
+                  const isOwner = entry.resource.owner_member_id === ownerMemberId;
+                  return (
+                    <li className="calendar-event-card" key={entry.resource_id}>
+                      <div className="calendar-event-content">
+                        <span className="calendar-event-meta">
+                          {entry.resource.visibility === "private" ? "Privat" : "Familie"}
+                          {" · Termin für " + subjectName(entry)}
+                        </span>
+                        <h3>{entry.title}</h3>
+                        <p>{describeEvent(entry)}</p>
+                      </div>
+                      {isOwner && (
+                        <div className="calendar-actions">
+                          <button className="text-button" type="button"
+                            onClick={(event) => void openDetail(entry, event.currentTarget)}>
+                            Details zu „{entry.title}“
+                          </button>
+                          <button className="text-button" type="button"
+                            onClick={() => { setEditing(entry); setShowEditor(true); }}>
+                            Bearbeiten
+                          </button>
+                          <button className="text-button" type="button"
+                            aria-expanded={sharing?.resourceId === entry.resource_id}
+                            aria-controls={`calendar-sharing-${entry.resource_id}`}
+                            onClick={() => void openSharing(entry)}>
+                            Freigaben
+                          </button>
+                          <button className="text-button" type="button"
+                            disabled={pendingDelete === entry.resource_id}
+                            onClick={() => void remove(entry)}>
+                            {pendingDelete === entry.resource_id ? "Wird gelöscht …" : "Löschen"}
+                          </button>
+                        </div>
+                      )}
+                      {isOwner && sharing?.resourceId === entry.resource_id && (
+                        <div
+                          className="calendar-sharing-panel"
+                          id={`calendar-sharing-${entry.resource_id}`}
+                          aria-label={`Freigaben für ${entry.title}`}
+                        >
+                          <h4>Lesefreigaben</h4>
+                          {sharing.error && <ErrorState description={sharing.error} />}
+                          {sharing.loading ? (
+                            <LoadingState label="Freigaben werden geladen" />
+                          ) : (
+                            <>
+                              <label>
+                                Sichtbarkeit
+                                <select
+                                  value={entry.resource.visibility}
+                                  disabled={sharing.pendingVisibility || sharing.pendingMemberId !== null}
+                                  onChange={(event) =>
+                                    void changeVisibility(
+                                      entry,
+                                      event.currentTarget.value as ResourceVisibility,
+                                    )}
+                                >
+                                  <option value="private">Privat</option>
+                                  <option value="family">Familie</option>
+                                </select>
+                              </label>
+                              <p className="calendar-hint">
+                                Die ausgewählten Personen erhalten ausschließlich Leserechte.
+                                Du bleibst Eigentümer und behältst Änderungs- und Löschrechte.
+                              </p>
+                              <div className="calendar-sharing-members">
+                                {eligibleCalendarGrantMembers(members, ownerMemberId).length === 0 ? (
+                                  <p className="calendar-hint">
+                                    Es gibt keine weiteren aktiven Familienkonten für eine explizite Freigabe.
+                                  </p>
+                                ) : (
+                                  eligibleCalendarGrantMembers(members, ownerMemberId).map((member) => {
+                                    const activeGrantIds = activeCalendarGrantMemberIds(sharing.grants);
+                                    return (
+                                      <label className="calendar-sharing-member" key={member.member_id}>
+                                        <input
+                                          type="checkbox"
+                                          checked={activeGrantIds.has(member.member_id)}
+                                          disabled={sharing.pendingVisibility || sharing.pendingMemberId !== null}
+                                          onChange={(event) =>
+                                            void changeGrant(
+                                              entry,
+                                              member.member_id,
+                                              event.currentTarget.checked,
+                                            )}
+                                        />
+                                        {member.display_name}
+                                      </label>
+                                    );
+                                  })
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {selectedSeriesOccurrences.length > 0 && (
+              <ul className="calendar-event-list" aria-label="Serientermine am ausgewählten Tag">
+                {selectedSeriesOccurrences.map((view) => {
+                  const isOwner = view.series.resource.owner_member_id === ownerMemberId;
+                  const effective = effectiveSeriesOccurrence(view);
+                  return (
+                    <li className="calendar-event-card" key={`${view.series.resource_id}-${view.occurrence.occurrence_key}`}>
+                      <div className="calendar-event-content">
+                        <span className="calendar-event-meta">
+                          Serientermin · {view.exception?.is_cancelled ? "abgesagt" : view.exception ? "Ausnahme" : "Basisregel"}
+                        </span>
+                        <h3>{effective?.title ?? view.series.title}</h3>
+                        <p>{describeSeriesOccurrence(view)}</p>
+                      </div>
+                      {isOwner && (
+                        <div className="calendar-actions">
+                          <button className="text-button" type="button"
+                            onClick={() => setEditingSeriesOccurrence(view)}>
+                            {view.exception ? "Ausnahme bearbeiten" : "Vorkommen ändern"}
+                          </button>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </>
         )}
       </section>
     </section>
   );
 }
+
+
