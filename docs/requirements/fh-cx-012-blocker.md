@@ -95,3 +95,21 @@ Grenzzeit-, Idempotenz-, Konkurrenz-, Cross-Family-/Privat-RLS- und
 Kalenderanzeige-/Fehlerzustandstests auszuführen. Dabei dürfen Änderungen
 eines Vorkommens weder die Serie noch fremde Vorkommen oder Sichtbarkeiten
 verändern.
+
+## Erneute Prüfung im aktuellen Agentenlauf
+
+Am 15.11.2026 wurde der Blocker auf `codex/agent-18` erneut bestätigt:
+Serien-/Ausnahmeoperationen sind weder im Kalenderservice noch in den
+Datenbanktypen oder Migrationen vorhanden. Es wurde ausschließlich dieser
+Bericht ergänzt; die vorhandenen unversionierten Automationsdateien wurden
+nicht verändert.
+
+`npm run typecheck`, `npm run lint`, `npm run test:unit` (43 Tests in
+5 Dateien) und `npm run build:client` waren erneut erfolgreich, jeweils
+Exit 0. Der Vitest-Reporter konnte weiterhin keine GitHub-Schrittzusammenfassung
+schreiben; der Build meldete weiterhin das Bundle über 500 kB.
+`npm run test:e2e -- tests/e2e/smoke.spec.ts` endete erneut mit Exit 1,
+weil der konfigurierte Webserver nicht startete. Die oben dokumentierte
+`listen EPERM`-Diagnose wurde in diesem Lauf nicht separat wiederholt.
+Datenbankgestützte Tests wurden nicht ausgeführt. Diese Prüfungen bestätigen
+keine Umsetzung oder Abnahme von FH-CX-012.
