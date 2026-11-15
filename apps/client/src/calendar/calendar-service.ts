@@ -1,5 +1,6 @@
 import type { Database } from "../auth/database.types";
 import { browserAuthConfig } from "../auth/auth-client";
+import { calendarEntryStartMillis } from "./calendar-utils";
 
 type EventRow = Database["public"]["Tables"]["calendar_events"]["Row"];
 type SeriesRow = Database["public"]["Tables"]["calendar_series"]["Row"];
@@ -69,9 +70,8 @@ export async function listCalendarEvents(familyId: string): Promise<CalendarEntr
       const resource = allowedResources.get(event.resource_id);
       return resource ? [{ ...event, resource }] : [];
     })
-    .sort((a, b) =>
-      (a.start_date ?? a.starts_at ?? "").localeCompare(b.start_date ?? b.starts_at ?? ""),
-    );
+    .sort((a, b) => calendarEntryStartMillis(a) - calendarEntryStartMillis(b)
+      || a.resource_id.localeCompare(b.resource_id));
 }
 
 export async function listCalendarSeries(familyId: string): Promise<CalendarSeriesEntry[]> {
@@ -92,9 +92,8 @@ export async function listCalendarSeries(familyId: string): Promise<CalendarSeri
       const resource = allowedResources.get(item.resource_id);
       return resource ? [{ ...item, resource }] : [];
     })
-    .sort((a, b) =>
-      (a.start_date ?? a.starts_at ?? "").localeCompare(b.start_date ?? b.starts_at ?? ""),
-    );
+    .sort((a, b) => calendarEntryStartMillis(a) - calendarEntryStartMillis(b)
+      || a.resource_id.localeCompare(b.resource_id));
 }
 
 export async function listCalendarSeriesOccurrences(

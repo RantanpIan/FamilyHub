@@ -156,6 +156,28 @@ describe("FH-CX-011 calendar series schema, RLS and commands", () => {
     expect(foreign.error?.code).toBe("42501");
   });
 
+  it("rejects non-finite and out-of-contract series times", async () => {
+    const args = createArgs(familyId, ownerMemberId);
+    const infinite = await owner.client.rpc("create_calendar_series_for_member", {
+      ...args,
+      p_request_id: randomUUID(),
+      p_starts_at: "infinity",
+      p_ends_at: "infinity",
+    });
+    expect(infinite.error?.code).toBe("22023");
+
+    const invalidAllDay = await owner.client.rpc("create_calendar_series_for_member", {
+      ...args,
+      p_request_id: randomUUID(),
+      p_is_all_day: true,
+      p_starts_at: null,
+      p_ends_at: null,
+      p_start_date: "9999-12-30",
+      p_end_date_exclusive: "10000-01-01",
+    });
+    expect(invalidAllDay.error?.code).toBe("22023");
+  });
+
   it("updates with optimistic versioning and rejects stale writes", async () => {
     const modified = await owner.client.rpc("update_calendar_series", {
       p_resource_id: seriesId,
