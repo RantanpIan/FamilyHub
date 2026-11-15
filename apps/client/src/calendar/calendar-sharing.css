@@ -1,0 +1,41 @@
+.calendar-sharing-panel {
+  flex-basis: 100%;
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #dce8e0;
+  border-radius: 12px;
+  background: #f7fbf8;
+}
+
+.calendar-sharing-panel h4 {
+  margin: 0;
+  color: #314b42;
+  font-size: 14px;
+}
+
+.calendar-sharing-panel select {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 5px;
+}
+
+.calendar-sharing-members {
+  display: grid;
+  gap: 8px;
+}
+
+.calendar-sharing-member {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+}
+
+.calendar-sharing-member input {
+  width: 20px;
+  height: 20px;
+  accent-color: #2d7462;
+}
+
