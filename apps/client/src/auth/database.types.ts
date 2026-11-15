@@ -360,6 +360,59 @@ export type Database = {
           },
         ];
       };
+      calendar_series_exceptions: {
+        Row: {
+          series_resource_id: string;
+          family_id: string;
+          occurrence_key: string;
+          exception_version: number;
+          is_cancelled: boolean;
+          title: string | null;
+          is_all_day: boolean | null;
+          starts_at: string | null;
+          ends_at: string | null;
+          start_date: string | null;
+          end_date_exclusive: string | null;
+          time_zone: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          series_resource_id: string;
+          family_id: string;
+          occurrence_key: string;
+          exception_version?: number;
+          is_cancelled?: boolean;
+          title?: string | null;
+          is_all_day?: boolean | null;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          start_date?: string | null;
+          end_date_exclusive?: string | null;
+          time_zone?: string | null;
+        };
+        Update: {
+          exception_version?: number;
+          is_cancelled?: boolean;
+          title?: string | null;
+          is_all_day?: boolean | null;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          start_date?: string | null;
+          end_date_exclusive?: string | null;
+          time_zone?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "calendar_series_exception_series_fk";
+            columns: ["series_resource_id", "family_id"];
+            isOneToOne: false;
+            referencedRelation: "calendar_series";
+            referencedColumns: ["resource_id", "family_id"];
+          },
+        ];
+      };
       resources: {
         Row: {
           id: string;
@@ -561,6 +614,34 @@ export type Database = {
         };
         Returns: string;
       };
+      set_calendar_series_exception: {
+        Args: {
+          p_series_resource_id: string;
+          p_occurrence_key: string;
+          p_request_id: string;
+          p_expected_series_version: number;
+          p_expected_exception_version: number;
+          p_action: "override" | "cancel";
+          p_title: string | null;
+          p_is_all_day: boolean | null;
+          p_starts_at: string | null;
+          p_ends_at: string | null;
+          p_start_date: string | null;
+          p_end_date_exclusive: string | null;
+          p_time_zone: string | null;
+        };
+        Returns: number;
+      };
+      delete_calendar_series_exception: {
+        Args: {
+          p_series_resource_id: string;
+          p_occurrence_key: string;
+          p_request_id: string;
+          p_expected_series_version: number;
+          p_expected_exception_version: number;
+        };
+        Returns: number;
+      };
       delete_calendar_event: {
         Args: { p_resource_id: string; p_expected_version: number };
         Returns: boolean;
@@ -709,4 +790,5 @@ export type Database = {
     CompositeTypes: { [_ in never]: never };
   };
 };
+
 
