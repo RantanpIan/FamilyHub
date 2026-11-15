@@ -1,14 +1,16 @@
 # FH-CX-012 – Kontrollierter Blocker zu Issue #18
 
-Stand: 14.11.2026. Status: **blockiert, nicht implementiert**.
+Stand: 15.11.2026. Status: **blockiert, nicht implementiert**.
 Geprüfter Branch: `codex/agent-18`.
 
 ## Auftrag und Befund
 
 Das Kalender-Epic verlangt das Verschieben, Absagen und Ändern genau eines
-Serienvorkommens. Die fünf Akzeptanzkriterien umfassen außerdem unveränderte
-übrige Vorkommen, deterministisches Wiederlesen und Löschen, Idempotenz sowie
-serverseitige und RLS-gesicherte Familienisolation.
+Serienvorkommens über eine stabile `occurrence_key`. Die acht Akzeptanzkriterien
+umfassen außerdem unveränderte übrige Vorkommen, eindeutige Identifikation über
+`series_id` und `occurrence_key`, Idempotenz, Rücknahme einer Ausnahme,
+Versionskonflikte, serverseitige und RLS-gesicherte Familienisolation sowie
+deterministische Anzeige, erneutes Lesen und Löschen.
 
 Die im Issue vorausgesetzte Seriengrundlage FH-CX-011 ist im vorliegenden
 Repository-Stand nicht implementiert auffindbar:
@@ -44,10 +46,18 @@ Datenbankdateiänderungen erfordern.
 Eine Browser-Speicherung oder Umwandlung in zusätzliche Einzeltermine würde
 Persistenz-, Identitäts-, Duplikat- und Sicherheitsanforderungen nicht erfüllen.
 Deshalb wurden keine Ersatzlogik, neue Seriennotation oder eigenen
-Berechtigungsregeln implementiert. Keines der fünf Akzeptanzkriterien von
+Berechtigungsregeln implementiert. Keines der acht Akzeptanzkriterien von
 FH-CX-012 wird als erfüllt oder getestet ausgewiesen.
 
+Auch der benötigte Zeitvertrag aus FH-CX-014 ist im Backlog weiterhin offen.
+Die Semantik stabiler Vorkommensschlüssel bei Verschiebungen und
+Sommerzeitwechseln wird deshalb nicht eigenständig festgelegt. Der separate
+Datenbank-/RLS-Vertrag aus FH-CX-011 muss insbesondere Eindeutigkeit,
+atomare Versionsprüfung, Retry-Verhalten und vererbte Autorisierung absichern.
+
 ## Prüfungen des unveränderten Implementierungsstands
+
+Die folgenden Befehle wurden am 15.11.2026 erneut ausgeführt:
 
 | Befehl | Tatsächliches Ergebnis |
 | --- | --- |
