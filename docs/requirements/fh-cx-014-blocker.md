@@ -1,7 +1,21 @@
 # FH-CX-014 – Kontrollierter Blocker zu Issue #20
 
-Stand: 14.11.2026. Status: **blockiert; keine Funktionsänderung implementiert**.
+Stand: 15.11.2026. Status: **blockiert; keine Funktionsänderung implementiert**.
 Geprüfter Feature-Branch: `codex/agent-20`.
+
+## Erneute Prüfung zu Issue #20
+
+Der erneut vorgelegte Auftrag wurde am 15.11.2026 gegen den vorhandenen
+Code geprüft. Die fachliche Freigabe für Einzeltermine wird berücksichtigt;
+der konkrete Konflikt bleibt die geforderte serverseitige Ablehnung nicht
+darstellbarer Werte bei gleichzeitigem Verbot von Datenbankdateiänderungen.
+Es existiert keine implementierte Edge Function als weitere Servervalidierung
+(`supabase/functions/README.md`); der Client ruft die PostgreSQL-RPCs direkt auf.
+Eine Browserprüfung könnte diese Sicherheitsanforderung nicht durchsetzen.
+Der folgende Blocker bleibt deshalb bestehen. Die unten aufgeführten
+Qualitätsbefehle wurden in diesem Lauf erneut ausgeführt; ihre Ergebnisse
+beziehen sich auf den unveränderten Produktcode, nicht auf eine Umsetzung
+von FH-CX-014.
 
 ## Auftrag und geprüfter Vertrag
 
@@ -102,7 +116,7 @@ Zone, Zeitreihenfolge und nicht darstellbare Werte; Cross-Family-/Privat-/ID-
 Negativtests sowie Playwright in europäischer Zeitzone mit mobilem Layout.
 DB-Nachweise benötigen einen separat autorisierten Testlauf.
 
-Nur dieser Bericht wurde ergänzt und uncommitted hinterlassen. Die vorhandenen
+Nur dieser Bericht wurde aktualisiert und uncommitted hinterlassen. Die vorhandenen
 unversionierten Automationsdateien bleiben erhalten. Produktcode, Baseline,
 Migrationen, Konfiguration und Rollen/Sichtbarkeit bleiben unverändert.
 Keine Datenbankoperation, kein Commit, Push, Merge oder Deployment.
