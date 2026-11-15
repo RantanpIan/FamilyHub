@@ -12,6 +12,11 @@ darstellbarer Werte bei gleichzeitigem Verbot von Datenbankdateiänderungen.
 Es existiert keine implementierte Edge Function als weitere Servervalidierung
 (`supabase/functions/README.md`); der Client ruft die PostgreSQL-RPCs direkt auf.
 Eine Browserprüfung könnte diese Sicherheitsanforderung nicht durchsetzen.
+Auch ohne Schemaänderung wäre dafür eine Änderung der vorhandenen
+SQL-Funktionsdefinition nötig; der aktuelle Auftrag verbietet ausdrücklich
+auch Änderungen an Datenbankdateien. Die fachliche Freigabe hebt dieses
+Verbot nicht auf. Es fehlt somit eine Freigabe für den betroffenen
+Servercode, nicht eine globale Standardzeitzone.
 Der folgende Blocker bleibt deshalb bestehen. Die unten aufgeführten
 Qualitätsbefehle wurden in diesem Lauf erneut ausgeführt; ihre Ergebnisse
 beziehen sich auf den unveränderten Produktcode, nicht auf eine Umsetzung
@@ -87,7 +92,7 @@ Es wurde keine Teilimplementierung als vollständige Lösung ausgegeben.
 
 ## Tatsächlich ausgeführte Prüfungen
 
-Erneut verifiziert am 15.11.2026, Unit-Teststart 15:34:31 UTC: Die folgenden
+Erneut verifiziert am 15.11.2026, Unit-Teststart 19:01:45 UTC: Die folgenden
 Ergebnisse wurden im aktuellen Agentenlauf reproduziert. Der kontrollierte
 Blocker besteht unverändert; es wurde keine Servervalidierung implementiert.
 
