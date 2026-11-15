@@ -1,8 +1,19 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { EmptyState, ErrorState, LoadingState } from "@familyhub/ui";
-import type { FamilyMember } from "@familyhub/contracts";
+import {
+  GrantResourceReadInputSchema,
+  type FamilyMember,
+  type ResourceGrant,
+  type ResourceVisibility,
+} from "@familyhub/contracts";
 import { getErrorMessage } from "../auth/auth-utils";
 import { useFamily } from "../family/useFamily";
+import {
+  grantResourceRead,
+  listResourceGrants,
+  revokeResourceRead,
+  setResourceVisibility,
+} from "../access/resource-access-service";
 import {
   createCalendarEvent,
   deleteCalendarEvent,
@@ -17,15 +28,18 @@ import {
   type CalendarSeriesException,
   type CalendarSeriesOccurrence,
 } from "./calendar-service";
-import {
-  CalendarSeriesExceptionEditor,
-} from "./CalendarSeriesExceptionEditor";
+import { CalendarSeriesExceptionEditor } from "./CalendarSeriesExceptionEditor";
 import {
   describeSeriesOccurrence,
   effectiveSeriesOccurrence,
   seriesOccurrenceOnDay,
   type CalendarSeriesOccurrenceView,
 } from "./calendar-series-exception-utils";
+import {
+  activeCalendarGrantMemberIds,
+  eligibleCalendarGrantMembers,
+} from "./calendar-sharing";
+import "./calendar-sharing.css";
 
 import {
   adjustEndAfterStart,
@@ -284,6 +298,14 @@ export function CalendarPage() {
   const [seriesLoading, setSeriesLoading] = useState(true);
   const [seriesError, setSeriesError] = useState<string | null>(null);
   const [editingSeriesOccurrence, setEditingSeriesOccurrence] = useState<CalendarSeriesOccurrenceView | null>(null);
+  const [sharing, setSharing] = useState<{
+    resourceId: string;
+    grants: ResourceGrant[];
+    loading: boolean;
+    pendingMemberId: string | null;
+    pendingVisibility: boolean;
+    error: string | null;
+  } | null>(null);
   const [revision, setRevision] = useState(0);
   const today = localDate(new Date());
   const [selectedDay, setSelectedDay] = useState(today);
@@ -416,6 +438,90 @@ export function CalendarPage() {
   function subjectName(entry: CalendarEntry): string {
     const id = entry.subject_member_id ?? entry.resource.owner_member_id;
     return members.find((member) => member.member_id === id)?.display_name ?? "Familienmitglied";
+  }
+
+  async function openSharing(entry: CalendarEntry) {
+    if (sharing?.resourceId === entry.resource_id) {
+      setSharing(null);
+      return;
+    }
+
+    setSharing({
+      resourceId: entry.resource_id,
+      grants: [],
+      loading: true,
+      pendingMemberId: null,
+      pendingVisibility: false,
+      error: null,
+    });
+    try {
+      const grants = await listResourceGrants(entry.resource_id);
+      setSharing((current) =>
+        current?.resourceId === entry.resource_id
+          ? { ...current, grants, loading: false }
+          : current,
+      );
+    } catch (error) {
+      setSharing((current) =>
+        current?.resourceId === entry.resource_id
+          ? { ...current, loading: false, error: getErrorMessage(error) }
+          : current,
+      );
+    }
+  }
+
+  async function changeVisibility(entry: CalendarEntry, visibility: ResourceVisibility) {
+    setSharing((current) =>
+      current?.resourceId === entry.resource_id
+        ? { ...current, pendingVisibility: true, error: null }
+        : current,
+    );
+    try {
+      await setResourceVisibility({
+        resourceId: entry.resource_id,
+        visibility,
+        expectedVersion: entry.resource.version,
+      });
+      setSharing(null);
+      reload();
+    } catch (error) {
+      setSharing((current) =>
+        current?.resourceId === entry.resource_id
+          ? { ...current, pendingVisibility: false, error: getErrorMessage(error) }
+          : current,
+      );
+    }
+  }
+
+  async function changeGrant(entry: CalendarEntry, memberId: string, enabled: boolean) {
+    setSharing((current) =>
+      current?.resourceId === entry.resource_id
+        ? { ...current, pendingMemberId: memberId, error: null }
+        : current,
+    );
+    try {
+      const input = GrantResourceReadInputSchema.parse({
+        resourceId: entry.resource_id,
+        granteeMemberId: memberId,
+      });
+      if (enabled) {
+        await grantResourceRead(input);
+      } else {
+        await revokeResourceRead(input);
+      }
+      const grants = await listResourceGrants(entry.resource_id);
+      setSharing((current) =>
+        current?.resourceId === entry.resource_id
+          ? { ...current, grants, pendingMemberId: null }
+          : current,
+      );
+    } catch (error) {
+      setSharing((current) =>
+        current?.resourceId === entry.resource_id
+          ? { ...current, pendingMemberId: null, error: getErrorMessage(error) }
+          : current,
+      );
+    }
   }
 
   if (!familyId || !ownerMemberId) {
@@ -581,10 +687,78 @@ export function CalendarPage() {
                             Bearbeiten
                           </button>
                           <button className="text-button" type="button"
+                            aria-expanded={sharing?.resourceId === entry.resource_id}
+                            aria-controls={`calendar-sharing-${entry.resource_id}`}
+                            onClick={() => void openSharing(entry)}>
+                            Freigaben
+                          </button>
+                          <button className="text-button" type="button"
                             disabled={pendingDelete === entry.resource_id}
                             onClick={() => void remove(entry)}>
                             {pendingDelete === entry.resource_id ? "Wird gelöscht …" : "Löschen"}
                           </button>
+                        </div>
+                      )}
+                      {isOwner && sharing?.resourceId === entry.resource_id && (
+                        <div
+                          className="calendar-sharing-panel"
+                          id={`calendar-sharing-${entry.resource_id}`}
+                          aria-label={`Freigaben für ${entry.title}`}
+                        >
+                          <h4>Lesefreigaben</h4>
+                          {sharing.error && <ErrorState description={sharing.error} />}
+                          {sharing.loading ? (
+                            <LoadingState label="Freigaben werden geladen" />
+                          ) : (
+                            <>
+                              <label>
+                                Sichtbarkeit
+                                <select
+                                  value={entry.resource.visibility}
+                                  disabled={sharing.pendingVisibility || sharing.pendingMemberId !== null}
+                                  onChange={(event) =>
+                                    void changeVisibility(
+                                      entry,
+                                      event.currentTarget.value as ResourceVisibility,
+                                    )}
+                                >
+                                  <option value="private">Privat</option>
+                                  <option value="family">Familie</option>
+                                </select>
+                              </label>
+                              <p className="calendar-hint">
+                                Die ausgewählten Personen erhalten ausschließlich Leserechte.
+                                Du bleibst Eigentümer und behältst Änderungs- und Löschrechte.
+                              </p>
+                              <div className="calendar-sharing-members">
+                                {eligibleCalendarGrantMembers(members, ownerMemberId).length === 0 ? (
+                                  <p className="calendar-hint">
+                                    Es gibt keine weiteren aktiven Familienkonten für eine explizite Freigabe.
+                                  </p>
+                                ) : (
+                                  eligibleCalendarGrantMembers(members, ownerMemberId).map((member) => {
+                                    const activeGrantIds = activeCalendarGrantMemberIds(sharing.grants);
+                                    return (
+                                      <label className="calendar-sharing-member" key={member.member_id}>
+                                        <input
+                                          type="checkbox"
+                                          checked={activeGrantIds.has(member.member_id)}
+                                          disabled={sharing.pendingVisibility || sharing.pendingMemberId !== null}
+                                          onChange={(event) =>
+                                            void changeGrant(
+                                              entry,
+                                              member.member_id,
+                                              event.currentTarget.checked,
+                                            )}
+                                        />
+                                        {member.display_name}
+                                      </label>
+                                    );
+                                  })
+                                )}
+                              </div>
+                            </>
+                          )}
                         </div>
                       )}
                     </li>
