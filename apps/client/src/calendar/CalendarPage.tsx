@@ -48,7 +48,8 @@ import {
   localDate,
   monthCells,
   nextLocalDate,
-  toLocalDateTime,
+  dateTimeInputInZone,
+  dateTimeInputToIso,
 } from "./calendar-utils";
 
 function describeEvent(event: CalendarEntry): string {
@@ -85,15 +86,20 @@ function CalendarEditor({
   onCancel: () => void;
 }) {
   const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Berlin";
+  const editorTimeZone = editing?.time_zone ?? browserZone;
   const [allDay, setAllDay] = useState(editing?.is_all_day ?? false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const startDefault = initialDay + "T16:00";
   const [startValue, setStartValue] = useState(
-    toLocalDateTime(editing?.starts_at ?? null) || startDefault,
+    dateTimeInputInZone(editing?.starts_at ?? null, editorTimeZone) || startDefault,
   );
   const [endValue, setEndValue] = useState(
-    toLocalDateTime(editing?.ends_at ?? null) || initialDay + "T17:00",
+    dateTimeInputInZone(editing?.ends_at ?? null, editorTimeZone) || initialDay + "T17:00",
+  );
+  const [startDay, setStartDay] = useState(editing?.start_date ?? initialDay);
+  const [endDay, setEndDay] = useState(
+    editing?.end_date_exclusive ?? nextLocalDate(editing?.start_date ?? initialDay),
   );
   const manuallyEditedEnd = useRef(false);
   const [subjectMemberId, setSubjectMemberId] = useState(
@@ -123,7 +129,7 @@ function CalendarEditor({
   function onStartChanged(value: string) {
     setStartValue(value);
     setEndValue((current) =>
-      adjustEndAfterStart(value, current, manuallyEditedEnd.current),
+      adjustEndAfterStart(value, current, manuallyEditedEnd.current, editorTimeZone),
     );
   }
 
@@ -131,34 +137,37 @@ function CalendarEditor({
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const title = String(data.get("title") ?? "").trim();
-    const day = String(data.get("day") ?? "");
-
     if (!title || title.length > 180) {
       setError("Bitte gib einen Titel mit maximal 180 Zeichen ein.");
       return;
     }
-    if (allDay && !/^\d{4}-\d{2}-\d{2}$/.test(day)) {
-      setError("Bitte wähle ein gültiges Datum.");
+    if (allDay && (
+      !/^\d{4}-\d{2}-\d{2}$/.test(startDay)
+      || !/^\d{4}-\d{2}-\d{2}$/.test(endDay)
+      || startDay >= endDay
+    )) {
+      setError("Bitte wähle einen gültigen Zeitraum mit exklusivem Enddatum.");
       return;
     }
+    const startsAt = allDay ? null : dateTimeInputToIso(startValue, editorTimeZone);
+    const endsAt = allDay ? null : dateTimeInputToIso(endValue, editorTimeZone);
     if (!allDay && (
       !startValue || !endValue ||
-      !Number.isFinite(Date.parse(startValue)) ||
-      !Number.isFinite(Date.parse(endValue)) ||
-      new Date(startValue).getTime() >= new Date(endValue).getTime()
+      !startsAt || !endsAt ||
+      new Date(startsAt).getTime() >= new Date(endsAt).getTime()
     )) {
-      setError("Die Endzeit muss nach dem Beginn liegen.");
+      setError("Die lokale Uhrzeit ist ungültig oder die Endzeit liegt nicht nach dem Beginn.");
       return;
     }
 
     const input: CalendarEventInput = {
       title,
       isAllDay: allDay,
-      startsAt: allDay ? null : new Date(startValue).toISOString(),
-      endsAt: allDay ? null : new Date(endValue).toISOString(),
-      startDate: allDay ? day : null,
-      endDateExclusive: allDay ? nextLocalDate(day) : null,
-      timeZone: browserZone,
+      startsAt,
+      endsAt,
+      startDate: allDay ? startDay : null,
+      endDateExclusive: allDay ? endDay : null,
+      timeZone: editorTimeZone,
     };
 
     setPending(true);
@@ -218,9 +227,12 @@ function CalendarEditor({
         </label>
         {allDay ? (
           <label>
-            Datum
-            <input name="day" type="date" required
-              defaultValue={editing?.start_date ?? initialDay} />
+            Beginn
+            <input name="day" type="date" required value={startDay}
+              onChange={(event) => setStartDay(event.currentTarget.value)} />
+            <span className="calendar-hint">Ende (exklusiv)</span>
+            <input name="endDay" type="date" required value={endDay} min={startDay}
+              onChange={(event) => setEndDay(event.currentTarget.value)} />
           </label>
         ) : (
           <div className="calendar-time-fields">
@@ -261,12 +273,12 @@ function CalendarEditor({
           </label>
         )}
         <p className="calendar-hint">
-          Zeitzone: {browserZone}. Einzeltermine ohne Wiederholungen oder Erinnerungen.
+          Zeitzone: {editorTimeZone}. Einzeltermine ohne Wiederholungen oder Erinnerungen.
           Bei Änderung des Beginns wird das Ende standardmäßig auf eine Stunde später gesetzt.
         </p>
         {editing && editing.time_zone !== browserZone && (
           <p className="calendar-hint">
-            Beim Speichern werden die Zeiten in deine lokale Zeitzone übertragen.
+            Der Termin bleibt in seiner ursprünglichen Zeitzone; die Eingabefelder zeigen diese Zeitzone an.
           </p>
         )}
         <div className="calendar-actions">
