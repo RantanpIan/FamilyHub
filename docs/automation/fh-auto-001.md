@@ -78,3 +78,7 @@ Die Dokumentation ist die einzige im Auftrag bearbeitete Datei; Supabase-Migrati
 ### Erneute Prüfung am 14.11.2026
 
 Auf `codex/agent-9` wurden `npm run typecheck`, `npm run lint`, `npm run test:unit` (43 Tests in fünf Dateien) und `npm run build:client` erneut erfolgreich ausgeführt (jeweils Exit-Code 0). Vitest konnte die GitHub-Schrittzusammenfassung wegen eines schreibgeschützten Pfads weiterhin nicht speichern; der Build meldete weiterhin die Chunk-Größenwarnung. Es wurden keine Supabase-Migrationen oder Datenbankänderungen ausgeführt. Der erfolgreiche lokale Prüflauf bestätigt noch nicht die anschließende Draft-PR-Erstellung oder deren CI-Ergebnisse; diese bleiben durch Pipeline und manuelle Kontrolle nachzuweisen.
+
+### Erneute Prüfung am 15.11.2026
+
+Auf `codex/agent-9` lief `npm run build` erfolgreich mit Exit-Code 0 durch: Typecheck, Lint, 43 Unit-Tests in fünf Dateien und Client-Build bestanden. Weiterhin gemeldet wurden der schreibgeschützte Pfad für die GitHub-Schrittzusammenfassung und die Chunk-Größenwarnung. Ausschließlich diese Dokumentation wurde bearbeitet; Datenbank-, Cloud- und Produktionszugriffe sowie Supabase-Migrationen wurden nicht ausgeführt. Commit und Draft-PR gegen `main` übernimmt anschließend die Pipeline; deren CI-Ergebnisse und die manuelle Diff-Kontrolle bleiben offen.
