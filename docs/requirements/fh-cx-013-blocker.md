@@ -3,6 +3,11 @@
 Stand: 15.11.2026. Status: **blockiert; keine Funktionsänderung implementiert**.
 Geprüfter Branch: `codex/agent-19`.
 
+Erneute Bestandsprüfung am 15.11.2026: Der erneut übergebene Auftrag enthält
+weiterhin denselben ausdrücklichen Freigabevorbehalt. Der Blocker bleibt
+deshalb bestehen. Die unten aufgeführten Befehle wurden in diesem Lauf erneut
+ausgeführt und lieferten dieselben Ergebnisse; es wurde keine Funktion ergänzt.
+
 ## Ergebnis der erneuten Prüfung
 
 Der aktuelle Auftrag konkretisiert reine Lese-Freigaben bei
