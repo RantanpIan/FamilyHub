@@ -87,6 +87,10 @@ Es wurde keine Teilimplementierung als vollständige Lösung ausgegeben.
 
 ## Tatsächlich ausgeführte Prüfungen
 
+Erneut verifiziert am 15.11.2026, Unit-Teststart 15:34:31 UTC: Die folgenden
+Ergebnisse wurden im aktuellen Agentenlauf reproduziert. Der kontrollierte
+Blocker besteht unverändert; es wurde keine Servervalidierung implementiert.
+
 | Befehl | Ergebnis |
 | --- | --- |
 | `npm run build` | Exit 0: Typecheck, ESLint, 49 Unit-Tests in 6 Dateien und Client-Build erfolgreich. Reporter konnte die GitHub-Step-Summary auf dem schreibgeschützten Runner-Pfad nicht schreiben; bestehende Bundle-Warnung über 500 kB. |
