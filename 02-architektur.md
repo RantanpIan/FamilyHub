@@ -160,7 +160,7 @@ Calendar-Events/Serien ----------------^
 
 ### Push
 
-- **BESCHLOSSEN:** FCM, APNs, Web Push werden berücksichtigt; fachliche Auswahl Patricia/Hannah/Helena/Sebastian/Alle.
+- **BESCHLOSSEN:** FCM, APNs, Web Push werden berücksichtigt; fachliche Auswahl Mitglied A/Mitglied B/Mitglied C/Mitglied D/Alle.
 - Ein Familienmitglied kann mehrere Geräte/Subscriptions besitzen; Gerätekennungen sind keine fachlichen Familienidentitäten.
 - Versandvorbereitung und Zustellung berücksichtigen aktuelle Berechtigung, Eigentümerschaft, Sichtbarkeit und Mitgliedschaft.
 - Ein privater Termin darf nicht durch Titel, Vorschau, Link, Zähler, Metadaten oder Payload bei einer unberechtigten Person sichtbar werden.
