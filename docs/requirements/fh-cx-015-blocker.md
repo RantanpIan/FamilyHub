@@ -1,6 +1,6 @@
 # FH-CX-015 – Kontrollierter Blocker zu Issue #21
 
-Stand: 14.11.2026. **Status: blockiert; keine Reminder-Funktion implementiert.**
+Stand: 15.11.2026 (erneut geprüft). **Status: blockiert; keine Reminder-Funktion implementiert.**
 Geprüfter Feature-Branch: `codex/agent-21`.
 
 ## Auftrag und geprüfter Ist-Stand
@@ -84,7 +84,7 @@ verboten. Es wurde keine Datenbank gestartet, zurückgesetzt oder migriert.
 
 ## Änderungen und nächster sinnvoller Schritt
 
-Nur dieser Bericht wurde ergänzt und uncommitted hinterlassen. Vorhandene
+Nur dieser Bericht wurde aktualisiert und uncommitted hinterlassen. Vorhandene
 unversionierte Automationsdateien bleiben erhalten. Produktcode, Baseline,
 Schema, Migrationen, Konfiguration und Workflows bleiben unverändert.
 Keine Commits, Pushes, Merges oder Deployments wurden ausgeführt.
@@ -101,3 +101,22 @@ freigegebener Datenbankauftrag für transaktionale Kopplung, Idempotenz,
 Versions-/Reihenfolgebehandlung und RLS erforderlich. Danach FH-CX-015 auf den
 tatsächlich vorhandenen Schnittstellen umsetzen und die offenen Nachweise
 ausführen. Dieser Bericht erteilt keine Schema- oder Datenbankfreigabe.
+
+## Erneute Prüfung am 15.11.2026
+
+Der erneute Auftrag zu Issue #21 wurde gegen den vorhandenen Feature-Branch
+geprüft. Die oben genannten technischen Blocker bestehen weiterhin; es wurden
+keine neuen Produkt-, Rollen-, Zeit- oder Payload-Regeln festgelegt. Die
+Auftragsfreigabe ersetzt die ältere Auftragszuordnung in AGENTS.md, hebt das
+ausdrückliche Verbot von Schema-/Datenbankdateiänderungen jedoch nicht auf.
+
+`npm run build` wurde erneut ausgeführt: Exit 0, Typecheck, Lint, alle 49
+Unit-Tests in 6 Dateien und Client-Build erfolgreich. Die bestehende
+Bundle-Warnung und der `EROFS`-Hinweis des GitHub-Summary-Reporters bestehen
+weiterhin. Die oben dokumentierte datenbankfreie Playwright-Auswahl wurde
+ebenfalls erneut ausgeführt: Exit 1 beim Start von `config.webServer`, keine
+Browserfälle ausgeführt. Diese Prüfungen belegen keine Reminder-Funktion.
+
+Integrations-/RLS- und datenbankgestützte E2E-Tests bleiben wegen ihrer
+schreibenden Fixtures unausgeführt. Änderungen beschränken sich auf diesen
+Bericht; vorhandene unversionierte Automationsdateien bleiben erhalten.
