@@ -7,14 +7,18 @@ Geprüfter Feature-Branch: `codex/agent-20`.
 
 Der aktuell vorgelegte Auftrag trennt ausdrücklich Teil A (Anzeige, lokale
 Berechnung, Ganztage, Sortierung und Client-Regressionen) und Teil B
-(serverseitige Validierung). Er gibt die Analyse frei, sperrt aber den Start
-von FH-CX-014 bis zur Entscheidung zu Teil B. Teil A kann erst nach vollständiger
+(serverseitige Validierung). Er gibt die Analyse frei und bezeichnet die technische Umsetzung zunächst als
+blockiert. Die ergänzte Zeile „freigabe wurde erteilt“ wird als vorliegende
+Freigabeaussage im Issue erfasst, enthält aber keine Antworten auf die fünf
+ausdrücklich vor Teil B geforderten Entscheidungen. Sie ersetzt insbesondere
+nicht das übergeordnete Verbot, Migrationen und Schema-/Datenbankdateien im
+Agentenlauf zu ändern. Teil A kann erst nach vollständiger
 fachlicher Prüfung als eigener agent-ready Auftrag bearbeitet werden; eine
 solche separate Freigabe liegt in diesem Auftrag nicht vor. Daher wurde auch
 keine Client-Teilimplementierung begonnen.
 
-Teil B benötigt eine separate menschliche Freigabe für Servercode/Migration.
-Die maßgebliche Validierung liegt weiterhin in der PostgreSQL-Funktion
+Für Teil B bleibt ein separat autorisierter Auftrag mit konkreten Entscheidungen
+und ausdrücklich erlaubten Server-/Migrationsdateien erforderlich. Die maßgebliche Validierung liegt weiterhin in der PostgreSQL-Funktion
 `private.validate_calendar_event_input`; ihre Datei ist im Agentenlauf gesperrt.
 Eine Browserprüfung würde direkte RPC-Aufrufe nicht absichern. FH-OPEN-004 wird
 nicht neu entschieden; eine globale Standardzeitzone ist keine Voraussetzung
@@ -101,8 +105,8 @@ Es wurde keine Teilimplementierung als vollständige Lösung ausgegeben.
 
 ## Tatsächlich ausgeführte Prüfungen
 
-Erneut verifiziert am 15.11.2026, Unit-Teststart 19:43:32 UTC: Die folgenden
-Ergebnisse wurden im aktuellen Agentenlauf reproduziert. Der kontrollierte
+Erneute Prüfung am 15.11.2026: Die folgenden Ergebnisse wurden im aktuellen
+Agentenlauf reproduziert. Der kontrollierte
 Blocker besteht unverändert; es wurde keine Servervalidierung implementiert.
 
 | Befehl | Ergebnis |
