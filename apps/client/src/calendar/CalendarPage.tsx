@@ -227,7 +227,7 @@ function CalendarEditor({
         </label>
         {allDay ? (
           <label>
-            Beginn
+            Datum
             <input name="day" type="date" required value={startDay}
               onChange={(event) => setStartDay(event.currentTarget.value)} />
             <span className="calendar-hint">Ende (exklusiv)</span>
