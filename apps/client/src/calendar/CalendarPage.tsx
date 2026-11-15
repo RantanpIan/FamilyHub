@@ -296,6 +296,13 @@ export function CalendarPage() {
   const [seriesLoading, setSeriesLoading] = useState(true);
   const [seriesError, setSeriesError] = useState<string | null>(null);
   const [editingSeriesOccurrence, setEditingSeriesOccurrence] = useState<CalendarSeriesOccurrenceView | null>(null);
+  const [detail, setDetail] = useState<CalendarEntry | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const detailRequest = useRef(0);
+  const detailHeading = useRef<HTMLHeadingElement>(null);
+  const detailTrigger = useRef<HTMLButtonElement | null>(null);
+  const restoreDetailFocus = useRef(false);
   const [sharing, setSharing] = useState<{
     resourceId: string;
     grants: ResourceGrant[];
@@ -393,7 +400,51 @@ export function CalendarPage() {
     return () => { active = false; };
   }, [familyId, ownerMemberId, monthKey, revision, displayMonth]);
 
+  useEffect(() => {
+    if (detail || detailLoading || detailError) {
+      detailHeading.current?.focus();
+    } else if (restoreDetailFocus.current) {
+      restoreDetailFocus.current = false;
+      if (detailTrigger.current?.isConnected) detailTrigger.current.focus();
+      else document.getElementById("calendar-selected-title")?.focus();
+    }
+  }, [detail, detailLoading, detailError]);
+
+  async function openDetail(entry: CalendarEntry, trigger: HTMLButtonElement) {
+    if (!familyId) return;
+    const request = ++detailRequest.current;
+    detailTrigger.current = trigger;
+    setEditing(null);
+    setShowEditor(false);
+    setDetail(null);
+    setDetailError(null);
+    setDetailLoading(true);
+    try {
+      const rows = await listCalendarEvents(familyId);
+      if (request !== detailRequest.current) return;
+      setEvents(rows);
+      const current = rows.find((row) => row.resource_id === entry.resource_id);
+      if (current) setDetail(current);
+      else setDetailError("Der Termin ist nicht verfügbar oder du hast keinen Zugriff mehr.");
+    } catch (error) {
+      if (request !== detailRequest.current) return;
+      setEvents([]);
+      setDetailError(getErrorMessage(error));
+    } finally {
+      if (request === detailRequest.current) setDetailLoading(false);
+    }
+  }
+
+  function closeDetail() {
+    detailRequest.current += 1;
+    setDetail(null);
+    setDetailLoading(false);
+    setDetailError(null);
+    restoreDetailFocus.current = true;
+  }
+
   function reload() {
+    closeDetail();
     setLoading(true);
     setSeriesLoading(true);
     setRevision((previous) => previous + 1);
@@ -559,6 +610,19 @@ export function CalendarPage() {
         </div>
       )}
       {actionError && <ErrorState description={actionError} />}
+      {(detail || detailLoading || detailError) && (
+        <section className="calendar-detail" aria-labelledby="calendar-detail-title">
+          <h3 id="calendar-detail-title" ref={detailHeading} tabIndex={-1}>Termindetails</h3>
+          {detailLoading && <LoadingState label="Zugriff auf Termin wird geprüft" />}
+          {detailError && <ErrorState description={detailError} />}
+          {detail && <>
+            <h4>{detail.title}</h4>
+            <p>{describeEvent(detail)}</p>
+            <p>{detail.resource.visibility === "private" ? "Privat" : "Familie"} · Termin für {subjectName(detail)}</p>
+          </>}
+          <button type="button" className="text-button" onClick={closeDetail}>Zurück zur Tagesansicht</button>
+        </section>
+      )}
       {showEditor && (
         <CalendarEditor
           key={editing?.resource_id ?? "new-" + selectedDay}
@@ -686,6 +750,10 @@ export function CalendarPage() {
                       </div>
                       {isOwner && (
                         <div className="calendar-actions">
+                          <button className="text-button" type="button"
+                            onClick={(event) => void openDetail(entry, event.currentTarget)}>
+                            Details zu „{entry.title}“
+                          </button>
                           <button className="text-button" type="button"
                             onClick={() => { setEditing(entry); setShowEditor(true); }}>
                             Bearbeiten
