@@ -5,22 +5,31 @@ Geprüfter Feature-Branch: `codex/agent-20`.
 
 ## Erneute Prüfung zu Issue #20
 
-Der erneut vorgelegte Auftrag wurde am 15.11.2026 gegen den vorhandenen
-Code geprüft. Die fachliche Freigabe für Einzeltermine wird berücksichtigt;
-der konkrete Konflikt bleibt die geforderte serverseitige Ablehnung nicht
-darstellbarer Werte bei gleichzeitigem Verbot von Datenbankdateiänderungen.
-Es existiert keine implementierte Edge Function als weitere Servervalidierung
-(`supabase/functions/README.md`); der Client ruft die PostgreSQL-RPCs direkt auf.
-Eine Browserprüfung könnte diese Sicherheitsanforderung nicht durchsetzen.
-Auch ohne Schemaänderung wäre dafür eine Änderung der vorhandenen
-SQL-Funktionsdefinition nötig; der aktuelle Auftrag verbietet ausdrücklich
-auch Änderungen an Datenbankdateien. Die fachliche Freigabe hebt dieses
-Verbot nicht auf. Es fehlt somit eine Freigabe für den betroffenen
-Servercode, nicht eine globale Standardzeitzone.
-Der folgende Blocker bleibt deshalb bestehen. Die unten aufgeführten
-Qualitätsbefehle wurden in diesem Lauf erneut ausgeführt; ihre Ergebnisse
-beziehen sich auf den unveränderten Produktcode, nicht auf eine Umsetzung
-von FH-CX-014.
+Der aktuell vorgelegte Auftrag trennt ausdrücklich Teil A (Anzeige, lokale
+Berechnung, Ganztage, Sortierung und Client-Regressionen) und Teil B
+(serverseitige Validierung). Er gibt die Analyse frei, sperrt aber den Start
+von FH-CX-014 bis zur Entscheidung zu Teil B. Teil A kann erst nach vollständiger
+fachlicher Prüfung als eigener agent-ready Auftrag bearbeitet werden; eine
+solche separate Freigabe liegt in diesem Auftrag nicht vor. Daher wurde auch
+keine Client-Teilimplementierung begonnen.
+
+Teil B benötigt eine separate menschliche Freigabe für Servercode/Migration.
+Die maßgebliche Validierung liegt weiterhin in der PostgreSQL-Funktion
+`private.validate_calendar_event_input`; ihre Datei ist im Agentenlauf gesperrt.
+Eine Browserprüfung würde direkte RPC-Aufrufe nicht absichern. FH-OPEN-004 wird
+nicht neu entschieden; eine globale Standardzeitzone ist keine Voraussetzung
+für die Aufhebung dieses konkreten Blockers.
+
+Vor Teil B bleiben ausdrücklich festzulegen:
+
+1. Der unterstützte endliche Zeit-/Datumsbereich.
+2. Ablehnung oder Korrektur nicht existierender lokaler Frühlingszeiten.
+3. Eindeutige Behandlung doppelter lokaler Herbstzeiten.
+4. Unveränderte historische Daten oder eine separat beauftragte Prüfung.
+5. Die erlaubte Test-/Zielumgebung einschließlich separater Anwendungsfreigabe.
+
+Die folgenden Prüfungen betreffen unveränderten Produktcode und sind kein
+Abnahmenachweis für FH-CX-014.
 
 ## Auftrag und geprüfter Vertrag
 
@@ -92,25 +101,27 @@ Es wurde keine Teilimplementierung als vollständige Lösung ausgegeben.
 
 ## Tatsächlich ausgeführte Prüfungen
 
-Erneut verifiziert am 15.11.2026, Unit-Teststart 19:01:45 UTC: Die folgenden
+Erneut verifiziert am 15.11.2026, Unit-Teststart 19:43:32 UTC: Die folgenden
 Ergebnisse wurden im aktuellen Agentenlauf reproduziert. Der kontrollierte
 Blocker besteht unverändert; es wurde keine Servervalidierung implementiert.
 
 | Befehl | Ergebnis |
 | --- | --- |
 | `npm run build` | Exit 0: Typecheck, ESLint, 49 Unit-Tests in 6 Dateien und Client-Build erfolgreich. Reporter konnte die GitHub-Step-Summary auf dem schreibgeschützten Runner-Pfad nicht schreiben; bestehende Bundle-Warnung über 500 kB. |
-| `npm run test:e2e -- tests/e2e/calendar-navigation.spec.ts` | Exit 1: konfigurierter Webserver konnte nicht starten; keine Browserfälle ausgeführt. Die Datei umfasst auch mobile Ansichten und verwendet simulierte Services ohne Datenbankschreibzugriffe. |
-| `npm run dev --workspace @familyhub/client -- --host 127.0.0.1` | Exit 1: Diagnose bestätigt `listen EPERM` auf `127.0.0.1:5173`. |
 
 DB-/RLS-Tests (`npm run test:integration`) wurden nicht ausgeführt: Ihre
 Fixtures erzeugen und löschen Daten. Auch datenbankgestützte Browsertests
 wurden wegen des ausdrücklichen Verbots von Datenbankänderungen nicht gestartet.
-Eine europäische Browserzeitzone wurde in diesem Lauf nicht verifiziert.
+Playwright wurde in diesem Lauf nicht erneut gestartet: Es gibt ausschließlich
+eine Berichtsänderung, keine implementierte Client-Regression. Eine europäische
+Browserzeitzone wurde in diesem Lauf nicht verifiziert.
 Bestehende grüne Unit-Tests sind kein Abnahmenachweis für FH-CX-014.
 
 ## Nächster sinnvoller Schritt – Vorschlag
 
-Einen separaten menschlich freigegebenen Auftrag für die vorhandene serverseitige
+Zunächst die fünf offenen Entscheidungen und die Serverfreigabe dokumentieren.
+Teil A nach vollständiger fachlicher Prüfung als eigenen agent-ready Auftrag
+bereitstellen. Einen separaten menschlich freigegebenen Auftrag für die vorhandene serverseitige
 Kalendervalidierung bereitstellen: nicht endliche und außerhalb des gemeinsam
 unterstützten Wertebereichs liegende Zeit-/Datumswerte kontrolliert ablehnen,
 ohne Berechtigungen zu erweitern. Den unterstützten Bereich und die Behandlung
