@@ -41,6 +41,29 @@ async function selectNovember() {
 }
 
 describe("FH-CX-010 Kalendernavigation", () => {
+  it.each(["Familie", "Mitglied"])("ignoriert verspätete Antworten nach Wechsel: %s", async (wechsel) => {
+    let resolveOld!: (rows: CalendarEntry[]) => void;
+    vi.mocked(listCalendarEvents).mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve; }));
+    const view = render(<CalendarPage />);
+    context.selectedFamily = wechsel === "Familie"
+      ? { family_id: "family-b", member_id: "other", family_name: "Testfamilie B" }
+      : { ...context.selectedFamily, member_id: "other" };
+    vi.mocked(listCalendarEvents).mockResolvedValueOnce([]);
+    view.rerender(<CalendarPage />);
+    await waitFor(() => expect(screen.queryByRole("status")).not.toBeInTheDocument());
+    await act(async () => resolveOld([entry]));
+    const now = new Date();
+    const delta = (2026 - now.getFullYear()) * 12 + 10 - now.getMonth();
+    for (let i = 0; i < Math.abs(delta); i++) {
+      fireEvent.click(screen.getByRole("button", { name: delta < 0 ? "Vorheriger Monat" : "Nächster Monat" }));
+    }
+    fireEvent.click(screen.getByTestId("calendar-day-2026-11-14"));
+    expect(screen.queryByText("Synthetischer Termin")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Details zu/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getAllByTestId(/^calendar-day-/).every((day) => day.getAttribute("aria-label")?.includes("keine Termine"))).toBe(true);
+  });
+
   it("zeigt alle 42 Tage, leere Tage, Monatswechsel und die Tagesauswahl", async () => {
     render(<CalendarPage />);
     await selectNovember();
