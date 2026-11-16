@@ -214,10 +214,10 @@ jobs:
             .replace(/gh[pousr]_[A-Za-z0-9_]{16,}/g, '[REDACTED_GITHUB_TOKEN]')
             .replace(/github_pat_[A-Za-z0-9_]{16,}/g, '[REDACTED_GITHUB_TOKEN]')
             .replace(/sbp_[A-Za-z0-9_-]{16,}/g, '[REDACTED_SUPABASE_TOKEN]')
-            .replace(/Bearer\\s+[A-Za-z0-9._-]{16,}/gi, 'Bearer [REDACTED_TOKEN]');
-          if (message.length > 4000) message = message.slice(0, 4000) + '\\n[gekürzt]';
+            .replace(/Bearer\s+[A-Za-z0-9._-]{16,}/gi, 'Bearer [REDACTED_TOKEN]');
+          if (message.length > 4000) message = message.slice(0, 4000) + '\n[gekürzt]';
           fs.mkdirSync('.github/codex', { recursive: true });
-          fs.writeFileSync('.github/codex/codex-final-message-redacted.txt', message + '\\n', 'utf8');
+          fs.writeFileSync('.github/codex/codex-final-message-redacted.txt', message + '\n', 'utf8');
           NODE
 
       - name: Upload attempt report
@@ -253,7 +253,7 @@ jobs:
             const summary = fs.existsSync('.github/codex/codex-final-message-redacted.txt')
               ? fs.readFileSync('.github/codex/codex-final-message-redacted.txt', 'utf8').trim()
               : 'Keine redigierte Codex-Abschlussmeldung vorhanden.';
-            const lines = report.split(/\\r?\\n/);
+            const lines = report.split(/\r?\n/);
             const failedChecks = [];
             for (let i = 0; i < lines.length; i += 1) {
               if (lines[i] === 'Ergebnis: fehlgeschlagen') {
@@ -270,7 +270,7 @@ jobs:
             const next = passed
               ? 'Nächster Schritt: Der Feature-Branch wird veröffentlicht; danach erstellt die Abschlussstufe den Draft-PR.'
               : 'Nächster Schritt: Öffne den Lauf und das Artefakt, behebe zuerst die genannten Prüfungen oder ergänze den Issue um die fehlende fachliche Entscheidung. Danach agent-ready erneut bewusst setzen.';
-            const quotedSummary = summary.split(/\\r?\\n/).slice(0, 12).map((line) => `> ${line}`).join('\\n');
+            const quotedSummary = summary.split(/\r?\n/).slice(0, 12).map((line) => `> ${line}`).join('\n');
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -288,17 +288,9 @@ jobs:
                 quotedSummary,
                 '',
                 'Der vollständige Validierungsreport und die redigierte Abschlussmeldung liegen 7 Tage als Workflow-Artefakt vor.',
-              ].join('\\n'),
+              ].join('\n'),
             });
 
-
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: fh-auto-001-issue-${{ inputs.issue-number }}-attempt-${{ inputs.attempt }}
-          path: validation-report.md
-          if-no-files-found: warn
-          retention-days: 7
 
       - name: Commit and push only the feature branch
         if: always()
