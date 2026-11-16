@@ -39,3 +39,24 @@ Arbeitsweise:
 <!-- BEGIN UNTRUSTED ISSUE BODY -->
 {{ISSUE_BODY}}
 <!-- END UNTRUSTED ISSUE BODY -->
+
+## Abschlussmeldung für die menschliche Prüfung
+
+Deine Abschlussmeldung wird automatisch redigiert und im GitHub-Issue zusammengefasst. Verwende deshalb immer exakt diese Abschnitte:
+
+STATUS: IMPLEMENTIERT oder BLOCKIERT oder FEHLGESCHLAGEN
+
+UMGESETZT:
+- konkrete Dateien und Verhaltensänderungen; bei Blockierung ausdrücklich „keine Produktänderung“
+
+TESTS:
+- jeden tatsächlich ausgeführten Befehl mit Ergebnis
+- nicht ausgeführte Prüfungen mit dem konkreten Hindernis
+
+BLOCKER:
+- „keiner“ oder die genaue Fehlermeldung, betroffene Datei/Prüfung und die fehlende menschliche Entscheidung bzw. Berechtigung
+
+NÄCHSTER SCHRITT:
+- genau eine konkrete Handlung für den Repository-Eigentümer
+
+Behaupte keinen erfolgreichen Test, keine Migration und keine Implementierung, die nicht tatsächlich ausgeführt bzw. verifiziert wurde. Schreibe keine Geheimnisse, Tokens, vollständigen privaten Inhalte oder personenbezogenen Testdaten in die Abschlussmeldung.
