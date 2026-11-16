@@ -12,6 +12,9 @@ on:
       issue-body:
         required: true
         type: string
+      allow-local-migrations:
+        required: true
+        type: boolean
       branch:
         required: true
         type: string
@@ -36,6 +39,7 @@ jobs:
       ISSUE_NUMBER: ${{ inputs.issue-number }}
       AGENT_BRANCH: ${{ inputs.branch }}
       ATTEMPT: ${{ inputs.attempt }}
+      ALLOW_LOCAL_MIGRATIONS: ${{ inputs.allow-local-migrations }}
     steps:
       - name: Check out main without retaining credentials
         uses: actions/checkout@v4
@@ -90,7 +94,7 @@ jobs:
                 `- Branch: \`${branch}\``,
                 `- Lauf: ${runUrl}`,
                 '- Geprüft werden Änderung, geschützte Pfade, Typecheck, Lint, Unit-Tests und Client-Build.',
-                '- Es erfolgt kein Merge und keine Datenbank-/Cloud-/Produktionsänderung.',
+                '- Es erfolgt kein Merge und keine Cloud-/Produktions-/produktive Datenbankänderung; lokale CI-Testmigrationen nur bei ausdrücklicher Issue-Freigabe.',
                 '',
                 'Der Abschlusskommentar folgt nach der Validierung.',
               ].join('\\n'),
@@ -101,6 +105,7 @@ jobs:
         env:
           ISSUE_TITLE: ${{ inputs.issue-title }}
           ISSUE_BODY: ${{ inputs.issue-body }}
+          ALLOW_LOCAL_MIGRATIONS: ${{ inputs.allow-local-migrations }}
         run: |
           node <<'NODE'
           const fs = require('node:fs');
@@ -109,6 +114,7 @@ jobs:
             '{{ISSUE_NUMBER}}': process.env.ISSUE_NUMBER ?? '',
             '{{ISSUE_TITLE}}': process.env.ISSUE_TITLE ?? '',
             '{{ISSUE_BODY}}': process.env.ISSUE_BODY ?? '',
+            '{{ALLOW_LOCAL_MIGRATIONS}}': process.env.ALLOW_LOCAL_MIGRATIONS ?? 'false',
           };
           const prompt = Object.entries(replacements).reduce(
             (value, [marker, replacement]) => value.split(marker).join(replacement),
@@ -156,10 +162,17 @@ jobs:
             failed=1
           fi
 
-          protected_files="$(printf '%s\n' "$changed_files" | grep -E '^(\.github/workflows/|\.github/ISSUE_TEMPLATE/|\.github/codex/|supabase/migrations/|supabase/config\.toml$|AGENTS\.md$|01-fachkonzept\.md$|02-architektur\.md$|04-entscheidungen\.md$|.*\.env($|\.)|.*\.(pem|key)$|package-lock\.json$)' || true)"
+          protected_files="$(printf '%s\n' "$changed_files" | grep -E '^(\.github/workflows/|\.github/ISSUE_TEMPLATE/|\.github/codex/|supabase/config\.toml$|AGENTS\.md$|01-fachkonzept\.md$|02-architektur\.md$|04-entscheidungen\.md$|.*\.env($|\.)|.*\.(pem|key)$|package-lock\.json$)' || true)"
           if [[ -n "$protected_files" ]]; then
             echo "- Ergebnis: FEHLER – geschützte Dateien geändert:" >> "$report"
             printf '  - `%s`\n' $protected_files >> "$report"
+            failed=1
+          fi
+
+          migration_files="$(printf '%s\n' "$changed_files" | grep -E '^supabase/migrations/.*\.sql$' || true)"
+          if [[ -n "$migration_files" && "$ALLOW_LOCAL_MIGRATIONS" != "true" ]]; then
+            echo "- Ergebnis: FEHLER – Migrationen sind für diesen Auftrag nicht ausdrücklich lokal/testweise freigegeben:" >> "$report"
+            printf '  - `%s`\n' $migration_files >> "$report"
             failed=1
           fi
 
@@ -315,4 +328,5 @@ jobs:
         if: steps.verify.outputs.passed != 'true'
         shell: bash
         run: exit 1
+
 
