@@ -146,6 +146,7 @@ jobs:
           set -uo pipefail
           report="validation-report.md"
           failed=0
+          failure_reasons=()
           {
             echo "# FH-AUTO-001 Validierung"
             echo
@@ -159,6 +160,7 @@ jobs:
           changed_files="$( { git diff --name-only origin/main...HEAD; git diff --name-only; git ls-files --others --exclude-standard; } | sort -u )"
           if [[ -z "$changed_files" ]]; then
             echo "- Ergebnis: FEHLER – keine Änderung erzeugt." >> "$report"
+            failure_reasons+=("keine Branch-Änderung")
             failed=1
           fi
 
@@ -166,6 +168,7 @@ jobs:
           if [[ -n "$protected_files" ]]; then
             echo "- Ergebnis: FEHLER – geschützte Dateien geändert:" >> "$report"
             printf '  - `%s`\n' $protected_files >> "$report"
+            failure_reasons+=("geschützte Dateien geändert")
             failed=1
           fi
 
@@ -173,11 +176,13 @@ jobs:
           if [[ -n "$migration_files" && "$ALLOW_LOCAL_MIGRATIONS" != "true" ]]; then
             echo "- Ergebnis: FEHLER – Migrationen sind für diesen Auftrag nicht ausdrücklich lokal/testweise freigegeben:" >> "$report"
             printf '  - `%s`\n' $migration_files >> "$report"
+            failure_reasons+=("Migration ohne lokale Freigabe")
             failed=1
           fi
 
           if ! git diff --check >> "$report" 2>&1; then
             echo "- Ergebnis: FEHLER – Whitespace-/Patch-Prüfung fehlgeschlagen." >> "$report"
+            failure_reasons+=("Patch-/Whitespace-Prüfung")
             failed=1
           fi
 
@@ -189,6 +194,7 @@ jobs:
               echo "Ergebnis: bestanden" >> "$report"
             else
               echo "Ergebnis: fehlgeschlagen" >> "$report"
+              failure_reasons+=("$label")
               failed=1
             fi
             echo >> "$report"
@@ -208,7 +214,12 @@ jobs:
             echo "- Gesamtergebnis: bestanden" >> "$report"
           else
             echo "passed=false" >> "$GITHUB_OUTPUT"
+            if [[ "${{ steps.codex.outcome }}" != "success" ]]; then
+              failure_reasons+=("Codex-Ausführung")
+            fi
+            failure_summary="${failure_reasons[*]:-unbekannte Ursache; Workflow-Bericht prüfen}"
             echo "- Gesamtergebnis: fehlgeschlagen" >> "$report"
+            echo "- Sichere Kurzursache: ${failure_summary}" >> "$report"
           fi
 
       - name: Prepare redacted Codex summary
@@ -278,6 +289,8 @@ jobs:
                 failedChecks.push(`${label ? label.slice(3) : 'Unbekannte Prüfung'}${detail ? `: ${detail}` : ''}`);
               }
             }
+            const shortCause = lines.find((line) => line.startsWith('- Sichere Kurzursache:'));
+            if (shortCause) failedChecks.unshift(shortCause.replace('- Sichere Kurzursache: ', ''));
             const runUrl = `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
             const status = passed ? 'ERFOLGREICH' : 'FEHLGESCHLAGEN';
             const next = passed
