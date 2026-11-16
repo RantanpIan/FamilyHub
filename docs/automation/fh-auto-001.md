@@ -45,6 +45,18 @@ Der Ablauf ist:
 - Pro Versuch gilt ein Zeitlimit von 20 Minuten. Der Workflow hat keinen Zeitplan und keine automatische Wiederholung außerhalb dieser drei Versuche.
 - `effort: low`, `--ephemeral` und die Begrenzung auf die vorhandenen Qualitätsbefehle begrenzen die laufenden Kosten. Die tatsächliche OpenAI-Abrechnung bleibt vom Projekt-/Account-Limit abhängig und wird nicht durch den Workflow selbst festgelegt.
 
+## Kommunikation und Fehlerbehebung
+
+Jeder kontrollierte Agentenversuch schreibt zwei nachvollziehbare Issue-Kommentare:
+
+1. **START** mit Versuch 1/3, Branch, Workflow-Lauf und den angekündigten Prüfungen.
+2. **ERFOLGREICH** oder **FEHLGESCHLAGEN** mit Codex-Ergebnis, fehlgeschlagenen Prüfungen, konkretem nächsten Schritt und einer redigierten Kurzmeldung des Agents.
+
+Der vollständige Validierungsreport und die redigierte Abschlussmeldung werden sieben Tage als Workflow-Artefakt aufbewahrt. API-Schlüssel, GitHub-/Supabase-Tokens und Bearer-Tokens werden vor Kommentar und Artefakt redigiert. Der temporäre Prompt und die nicht redigierte Abschlussmeldung werden nicht in den Feature-Branch committed.
+
+Die Kommunikationsregel ändert keine Sicherheitsgrenzen: Der Agent darf weiterhin keine Migrationen, Schema-/Datenbankdateien, Workflows, Secrets oder Produktions-/Cloud-Konfiguration ändern. Ein fachlicher Blocker wird als Blocker gemeldet und nicht durch eine eigene Produktentscheidung ersetzt.
+
+
 ## Prüfungen und Übergabe
 
 Der Agentenlauf verwendet die bereits vorhandenen, nicht-datenbankbezogenen CI-Befehle:
