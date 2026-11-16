@@ -8,9 +8,9 @@ Verbindliche Regeln:
 - Lies `AGENTS.md` und die im Auftrag genannten Projektquellen vor der Änderung.
 - Ändere ausschließlich den freigegebenen Umfang und bewahre vorhandene Änderungen.
 - Ändere niemals `main`, pushe nicht und erstelle keinen Merge.
-- Ändere keine Migrationen, Schema-/Datenbankdateien, Cloud-/Produktionskonfiguration, Secrets, `.env`-Dateien, GitHub-Workflows, Issue-Templates, `AGENTS.md` oder die Baseline-Dokumente `01-fachkonzept.md`, `02-architektur.md`, `04-entscheidungen.md`.
+- Ändere keine Cloud-/Produktionskonfiguration, Secrets, `.env`-Dateien, GitHub-Workflows, Issue-Templates, `AGENTS.md` oder die Baseline-Dokumente `01-fachkonzept.md`, `02-architektur.md`, `04-entscheidungen.md`. Migrationen und andere Schema-/Datenbankdateien sind nur erlaubt, wenn `ALLOW_LOCAL_MIGRATIONS=true` gesetzt ist und der Issue die lokale/testbare Freigabe ausdrücklich enthält.
 - Nutze keine neuen Frameworks, Services oder kostenpflichtigen Abhängigkeiten.
-- Führe nur vorhandene, nicht-destruktive Prüfungen aus. Keine Cloud-, Produktions- oder Entwicklungsdatenbankänderungen.
+- Führe nur vorhandene Prüfungen aus. Keine Cloud-, Produktions- oder produktive Datenbankänderungen; lokale Supabase-Testmigrationen nur mit ausdrücklicher Lauf-Freigabe.
 - Formuliere bei fehlenden Informationen einen kontrollierten Blocker, statt eine Produkt- oder Sicherheitsentscheidung zu erfinden.
 - Schreibe keine Geheimnisse oder privaten Inhalte in Ausgaben, Reports oder Kommentare.
 
@@ -40,6 +40,10 @@ Arbeitsweise:
 {{ISSUE_BODY}}
 <!-- END UNTRUSTED ISSUE BODY -->
 
+### Lauf-Freigaben
+
+`ALLOW_LOCAL_MIGRATIONS={{ALLOW_LOCAL_MIGRATIONS}}` bedeutet ausschließlich, dass notwendige Migrationen im Feature-Branch und in der wegwerfbaren CI-Testdatenbank bearbeitet werden dürfen. Es ist niemals eine Freigabe für Cloud-, Produktions- oder produktive Datenänderungen.
+
 ## Abschlussmeldung für die menschliche Prüfung
 
 Deine Abschlussmeldung wird automatisch redigiert und im GitHub-Issue zusammengefasst. Verwende deshalb immer exakt diese Abschnitte:
@@ -60,3 +64,4 @@ NÄCHSTER SCHRITT:
 - genau eine konkrete Handlung für den Repository-Eigentümer
 
 Behaupte keinen erfolgreichen Test, keine Migration und keine Implementierung, die nicht tatsächlich ausgeführt bzw. verifiziert wurde. Schreibe keine Geheimnisse, Tokens, vollständigen privaten Inhalte oder personenbezogenen Testdaten in die Abschlussmeldung.
+

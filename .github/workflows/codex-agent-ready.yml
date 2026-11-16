@@ -33,6 +33,7 @@ jobs:
       branch: ${{ steps.guard.outputs.branch }}
       issue_title: ${{ steps.guard.outputs.issue_title }}
       issue_body: ${{ steps.guard.outputs.issue_body }}
+      allow_local_migrations: ${{ steps.guard.outputs.allow_local_migrations }}
     steps:
       - name: Check issuer, issue form and duplicate PRs
         id: guard
@@ -78,11 +79,15 @@ jobs:
               body.includes('Keine Datenbank-, Cloud- oder Produktionsänderung') ||
               body.includes('Nur lokale, wegwerfbare Testausführung ohne Migration im Repository');
             const unsafeDatabaseScope = body.includes('Schema-, Migrations-, Cloud- oder Produktionsänderung');
+            const allowLocalMigrations = body.includes(
+              'lokale/testbare Migration im Feature-Branch und in der CI-Testdatenbank ist hiermit ausdrücklich freigegeben',
+            );
 
             const failClosed = (reason) => {
               core.setOutput('approved', 'false');
               core.setOutput('issue_number', String(issue.number));
               core.setOutput('branch', branch);
+              core.setOutput('allow_local_migrations', 'false');
               core.warning(reason);
             };
 
@@ -161,6 +166,7 @@ jobs:
             core.setOutput('branch', branch);
             core.setOutput('issue_title', issue.title ?? '');
             core.setOutput('issue_body', issue.body ?? '');
+            core.setOutput('allow_local_migrations', allowLocalMigrations ? 'true' : 'false');
             core.notice(`Auftrag ${issue.number} ist für FH-AUTO-001 freigegeben; Zielbranch: ${branch}.`);
 
   key_check:
@@ -204,6 +210,7 @@ jobs:
       attempt: 1
       issue-title: ${{ needs.guard.outputs.issue_title }}
       issue-body: ${{ needs.guard.outputs.issue_body }}
+      allow-local-migrations: ${{ needs.guard.outputs.allow_local_migrations == 'true' }}
     secrets:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
@@ -225,6 +232,7 @@ jobs:
       attempt: 2
       issue-title: ${{ needs.guard.outputs.issue_title }}
       issue-body: ${{ needs.guard.outputs.issue_body }}
+      allow-local-migrations: ${{ needs.guard.outputs.allow_local_migrations == 'true' }}
     secrets:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
@@ -247,6 +255,7 @@ jobs:
       attempt: 3
       issue-title: ${{ needs.guard.outputs.issue_title }}
       issue-body: ${{ needs.guard.outputs.issue_body }}
+      allow-local-migrations: ${{ needs.guard.outputs.allow_local_migrations == 'true' }}
     secrets:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
@@ -515,3 +524,4 @@ jobs:
               core.warning(`agent-queued konnte nach Blockierung nicht entfernt werden: ${error.message}`);
             }
             await dispatchQueue();
+
