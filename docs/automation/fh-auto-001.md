@@ -34,7 +34,7 @@ Der Ablauf ist:
 - Die Action ist auf einen geprüften Commit gepinnt: `openai/codex-action@13e9c17417b29e9a276f73ec6ed7fb574137d3c3`. Eine Aktualisierung benötigt eine erneute Prüfung der offiziellen Action-Dokumentation und des Upstream-Commits.
 - Codex läuft auf einem Linux-Runner mit `permission-profile: ":workspace"`, `safety-strategy: drop-sudo`, niedrigem Reasoning-Aufwand und ephemerem Lauf. Netzwerkzugriff für Codex ist nicht vorgesehen; npm-Abhängigkeiten werden vorher durch den bestehenden Lockfile-Workflow installiert.
 - Issue-Titel und -Text werden nur als markierter, untrusted Kontext in einen temporären Prompt geschrieben. Sie dürfen keine Workflow-Regel überschreiben.
-- Der Agent darf keine Migrationen, Schema-/Datenbankdateien, Cloud-/Produktionskonfiguration, Secrets, `.env`-Dateien, Workflows, Issue-Templates oder Baseline-Dokumente ändern. Das wird nach dem Agenten deterministisch geprüft.
+- Der Agent darf keine Cloud-/Produktionskonfiguration, Secrets, `.env`-Dateien, Workflows, Issue-Templates oder Baseline-Dokumente ändern. Migrationen und andere Schema-/Datenbankdateien sind nur erlaubt, wenn `ALLOW_LOCAL_MIGRATIONS=true` gesetzt ist und der geprüfte Issue eine lokale/testbare Freigabe ausdrücklich enthält; die Prüfung bleibt fail-closed.
 - Es gibt keinen automatischen Merge, keine automatische Freigabe und keine Cloud-/Produktionsmigration. Branch-Protection und bestehende CI entscheiden weiterhin über die Freigabe.
 
 ## Idempotenz, Kosten und Fehlerkorrektur
@@ -54,7 +54,7 @@ Jeder kontrollierte Agentenversuch schreibt zwei nachvollziehbare Issue-Kommenta
 
 Der vollständige Validierungsreport und die redigierte Abschlussmeldung werden sieben Tage als Workflow-Artefakt aufbewahrt. API-Schlüssel, GitHub-/Supabase-Tokens und Bearer-Tokens werden vor Kommentar und Artefakt redigiert. Der temporäre Prompt und die nicht redigierte Abschlussmeldung werden nicht in den Feature-Branch committed.
 
-Die Kommunikationsregel ändert keine Sicherheitsgrenzen: Der Agent darf weiterhin keine Migrationen, Schema-/Datenbankdateien, Workflows, Secrets oder Produktions-/Cloud-Konfiguration ändern. Ein fachlicher Blocker wird als Blocker gemeldet und nicht durch eine eigene Produktentscheidung ersetzt.
+Die Kommunikationsregel ändert keine Sicherheitsgrenzen: Der Agent darf weiterhin keine Workflows, Secrets oder Produktions-/Cloud-Konfiguration ändern. Lokale/testbare Migrationen und Schema-/Datenbankänderungen sind nur bei der geprüften `ALLOW_LOCAL_MIGRATIONS`-Freigabe erlaubt; ohne diese Freigabe bleibt der Auftrag blockiert. Ein fachlicher Blocker wird als Blocker gemeldet und nicht durch eine eigene Produktentscheidung ersetzt.
 
 
 ## Prüfungen und Übergabe
