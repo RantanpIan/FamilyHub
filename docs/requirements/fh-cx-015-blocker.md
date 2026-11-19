@@ -120,3 +120,26 @@ Browserfälle ausgeführt. Diese Prüfungen belegen keine Reminder-Funktion.
 Integrations-/RLS- und datenbankgestützte E2E-Tests bleiben wegen ihrer
 schreibenden Fixtures unausgeführt. Änderungen beschränken sich auf diesen
 Bericht; vorhandene unversionierte Automationsdateien bleiben erhalten.
+
+## Erneute Prüfung am 19.11.2026
+
+Der aktuelle Issue-Text erlaubt ausdrücklich lokale/testbare Migrationen und
+minimale Persistenzbausteine. Die verbindlichen Regeln außerhalb des Issue-Texts
+verbieten Änderungen an Migrationen, Schema- und Datenbankdateien. Für diesen
+Lauf gilt dieses Verbot. Die vorhandenen Kalenderoperationen bieten weiterhin
+keine transaktionale Kopplung mit Reminder-Persistenz oder Zustellungsdeduplizierung.
+FH-CX-015 bleibt blockiert. Für die Umsetzung braucht es eine Freigabe außerhalb
+des Issue-Texts, die den erlaubten Umfang für Migrationen, RPCs, RLS und die
+isolierte Testdatenbank eindeutig festlegt.
+
+- `npm run build` war erfolgreich. Typecheck, Lint, 49 Unit-Tests und
+  Client-Build liefen durch. Der Summary-Reporter meldete `EROFS`, Vite meldete
+  ein Bundle über 500 kB.
+- `npm run test:e2e -- tests/e2e/smoke.spec.ts tests/e2e/calendar-navigation.spec.ts`
+  endete mit Exit 1 beim Start des konfigurierten Webservers. Es wurden keine
+  Browserfälle ausgeführt.
+- `npm run test:integration` und datenbankgestützte E2E-Prüfungen wurden wegen
+  schreibender Fixtures nicht ausgeführt. Reminder-spezifische Nachweise bleiben offen.
+
+Der Bericht ist die einzige Änderung dieses Laufs. Es wurde keine Datenbank
+geändert und keine externe Zustellung ausgeführt.
