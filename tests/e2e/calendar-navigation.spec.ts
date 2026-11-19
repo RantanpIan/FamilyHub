@@ -35,7 +35,12 @@ for (const width of [320, 390, 768, 1440]) {
         resource:{id:'event-a',owner_member_id:'owner',visibility:'private',version:1}}];
         export const createCalendarEvent = async () => {};
         export const updateCalendarEvent = async () => {};
-        export const deleteCalendarEvent = async () => {};`,
+        export const deleteCalendarEvent = async () => {};
+        export const listCalendarSeries = async () => [];
+        export const listCalendarSeriesOccurrences = async () => [];
+        export const listCalendarSeriesExceptions = async () => [];
+        export const deleteCalendarSeriesException = async () => {};
+        export const setCalendarSeriesException = async () => {};`,
     }));
     await page.goto("/app");
     await page.getByRole("button", { name: "Kalender", exact: true }).filter({ visible: true }).click();
@@ -74,3 +79,4 @@ for (const width of [320, 390, 768, 1440]) {
     }
   });
 }
+

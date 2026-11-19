@@ -33,6 +33,7 @@ jobs:
       branch: ${{ steps.guard.outputs.branch }}
       issue_title: ${{ steps.guard.outputs.issue_title }}
       issue_body: ${{ steps.guard.outputs.issue_body }}
+      allow_local_migrations: ${{ steps.guard.outputs.allow_local_migrations }}
     steps:
       - name: Check issuer, issue form and duplicate PRs
         id: guard
@@ -78,11 +79,15 @@ jobs:
               body.includes('Keine Datenbank-, Cloud- oder Produktionsänderung') ||
               body.includes('Nur lokale, wegwerfbare Testausführung ohne Migration im Repository');
             const unsafeDatabaseScope = body.includes('Schema-, Migrations-, Cloud- oder Produktionsänderung');
+            const allowLocalMigrations = body.includes(
+              'lokale/testbare Migration im Feature-Branch und in der CI-Testdatenbank ist hiermit ausdrücklich freigegeben',
+            );
 
             const failClosed = (reason) => {
               core.setOutput('approved', 'false');
               core.setOutput('issue_number', String(issue.number));
               core.setOutput('branch', branch);
+              core.setOutput('allow_local_migrations', 'false');
               core.warning(reason);
             };
 
@@ -161,6 +166,7 @@ jobs:
             core.setOutput('branch', branch);
             core.setOutput('issue_title', issue.title ?? '');
             core.setOutput('issue_body', issue.body ?? '');
+            core.setOutput('allow_local_migrations', allowLocalMigrations ? 'true' : 'false');
             core.notice(`Auftrag ${issue.number} ist für FH-AUTO-001 freigegeben; Zielbranch: ${branch}.`);
 
   key_check:
@@ -195,7 +201,7 @@ jobs:
     if: needs.key_check.outputs.configured == 'true'
     permissions:
       contents: write
-      issues: read
+      issues: write
       pull-requests: read
     uses: ./.github/workflows/codex-agent-attempt.yml
     with:
@@ -204,6 +210,7 @@ jobs:
       attempt: 1
       issue-title: ${{ needs.guard.outputs.issue_title }}
       issue-body: ${{ needs.guard.outputs.issue_body }}
+      allow-local-migrations: ${{ needs.guard.outputs.allow_local_migrations == 'true' }}
     secrets:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
@@ -216,7 +223,7 @@ jobs:
       needs.attempt_1.result == 'failure'
     permissions:
       contents: write
-      issues: read
+      issues: write
       pull-requests: read
     uses: ./.github/workflows/codex-agent-attempt.yml
     with:
@@ -225,6 +232,7 @@ jobs:
       attempt: 2
       issue-title: ${{ needs.guard.outputs.issue_title }}
       issue-body: ${{ needs.guard.outputs.issue_body }}
+      allow-local-migrations: ${{ needs.guard.outputs.allow_local_migrations == 'true' }}
     secrets:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
@@ -238,7 +246,7 @@ jobs:
       needs.attempt_2.result == 'failure'
     permissions:
       contents: write
-      issues: read
+      issues: write
       pull-requests: read
     uses: ./.github/workflows/codex-agent-attempt.yml
     with:
@@ -247,6 +255,7 @@ jobs:
       attempt: 3
       issue-title: ${{ needs.guard.outputs.issue_title }}
       issue-body: ${{ needs.guard.outputs.issue_body }}
+      allow-local-migrations: ${{ needs.guard.outputs.allow_local_migrations == 'true' }}
     secrets:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
@@ -384,7 +393,18 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue.number,
-              body: `FH-AUTO-001 erfolgreich übergeben: Draft-PR #${pr.number} auf ${branch}. Bitte CI, Diff, Akzeptanzkriterien und Branch-Regeln manuell prüfen; kein automatischer Merge.`,
+              body: [
+                `FH-AUTO-001 READY: Draft-PR #${pr.number} auf ${branch} wurde erstellt bzw. wiederverwendet.`,
+                '',
+                'Nächste Schritte:',
+                '1. CI-Prüfungen und Diff prüfen.',
+                '2. Akzeptanzkriterien, Datenschutz/RLS und Branch-Regeln prüfen.',
+                '3. PR auf „Ready for review“ setzen und nach menschlicher Freigabe manuell mergen.',
+                '4. Issue erst nach erfolgreichem Merge schließen.',
+                '',
+                'Kein automatischer Merge und keine Produktions-/Cloud-Datenbankänderung.',
+                `Workflow-Lauf: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              ].join('\\n'),
             });
             try {
               await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, name: 'agent-queued' });
@@ -507,7 +527,18 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue.number,
-              body: `FH-AUTO-001 BLOCKED: Drei kontrollierte Versuche sind fehlgeschlagen. Der Branch ${branch} bleibt zur manuellen Diagnose erhalten. Prüfe den Workflow-Lauf ${context.runId}, die Artefakte, den Diff und die CI-Fehler; danach Auftrag korrigieren und agent-ready bewusst erneut setzen. Es wurde kein Merge und keine Datenbank-/Cloud-Änderung ausgeführt.`,
+              body: [
+                `FH-AUTO-001 BLOCKED: Drei kontrollierte Versuche sind fehlgeschlagen. Der Branch ${branch} bleibt zur manuellen Diagnose erhalten.`,
+                '',
+                'Die drei vorherigen Versuchskommentare enthalten jeweils die konkrete Kurzursache und den nächsten Schritt.',
+                '',
+                'Nächste Schritte:',
+                '1. Workflow-Lauf und die drei Artefakte öffnen.',
+                '2. Den ersten konkreten Fehler beheben; nicht nur erneut starten.',
+                '3. Issue-Beschreibung oder Code korrigieren, danach `agent-ready` bewusst erneut setzen.',
+                '4. Kein Merge und keine Datenbank-/Cloud-Änderung wurde ausgeführt.',
+                `Workflow-Lauf: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              ].join('\\n'),
             });
             try {
               await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, name: 'agent-queued' });
@@ -515,3 +546,4 @@ jobs:
               core.warning(`agent-queued konnte nach Blockierung nicht entfernt werden: ${error.message}`);
             }
             await dispatchQueue();
+

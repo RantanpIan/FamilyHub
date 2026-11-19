@@ -13,7 +13,7 @@
 | FH-DEC-004 | Kalender und Stundenplan zuerst | Beschlossen | Erster fachlicher Entwicklungsfokus |
 | FH-DEC-005 | Keine eigenständige Fahrdienstplanung | Beschlossen | Kein Fahrdienstmodul planen oder implementieren |
 | FH-DEC-006 | Geeignete eigene Inhalte kann jedes Mitglied privat markieren | Beschlossen | Berechtigungen/Filterung systemweit |
-| FH-DEC-007 | Push-Empfängerwahl anfänglich Patricia, Hannah, Helena, Sebastian, Alle | Beschlossen | Familienbezogene Auflösung, keine globalen IDs |
+| FH-DEC-007 | Push-Empfängerwahl anfänglich Mitglied A, Mitglied B, Mitglied C, Mitglied D, Alle | Beschlossen | Familienbezogene Auflösung, keine globalen IDs |
 | FH-DEC-008 | React, TypeScript, Vite | Beschlossen | Gemeinsames Web-Frontend |
 | FH-DEC-009 | Capacitor für Android/iOS, PWA für Desktop | Beschlossen | Plattformspezifische Integration kapseln |
 | FH-DEC-010 | Supabase/PostgreSQL einschließlich Auth, privater Storage | Beschlossen | Datenhaltung/Auth/Dateien entsprechend absichern |

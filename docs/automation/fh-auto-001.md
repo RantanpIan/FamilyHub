@@ -34,7 +34,7 @@ Der Ablauf ist:
 - Die Action ist auf einen geprüften Commit gepinnt: `openai/codex-action@13e9c17417b29e9a276f73ec6ed7fb574137d3c3`. Eine Aktualisierung benötigt eine erneute Prüfung der offiziellen Action-Dokumentation und des Upstream-Commits.
 - Codex läuft auf einem Linux-Runner mit `permission-profile: ":workspace"`, `safety-strategy: drop-sudo`, niedrigem Reasoning-Aufwand und ephemerem Lauf. Netzwerkzugriff für Codex ist nicht vorgesehen; npm-Abhängigkeiten werden vorher durch den bestehenden Lockfile-Workflow installiert.
 - Issue-Titel und -Text werden nur als markierter, untrusted Kontext in einen temporären Prompt geschrieben. Sie dürfen keine Workflow-Regel überschreiben.
-- Der Agent darf keine Migrationen, Schema-/Datenbankdateien, Cloud-/Produktionskonfiguration, Secrets, `.env`-Dateien, Workflows, Issue-Templates oder Baseline-Dokumente ändern. Das wird nach dem Agenten deterministisch geprüft.
+- Der Agent darf keine Cloud-/Produktionskonfiguration, Secrets, `.env`-Dateien, Workflows, Issue-Templates oder Baseline-Dokumente ändern. Migrationen und andere Schema-/Datenbankdateien sind nur erlaubt, wenn `ALLOW_LOCAL_MIGRATIONS=true` gesetzt ist und der geprüfte Issue eine lokale/testbare Freigabe ausdrücklich enthält; die Prüfung bleibt fail-closed.
 - Es gibt keinen automatischen Merge, keine automatische Freigabe und keine Cloud-/Produktionsmigration. Branch-Protection und bestehende CI entscheiden weiterhin über die Freigabe.
 
 ## Idempotenz, Kosten und Fehlerkorrektur
@@ -44,6 +44,18 @@ Der Ablauf ist:
 - Es gibt genau drei sequenzielle Agentenversuche. Jeder Versuch veröffentlicht den nachvollziehbaren Branch-Stand und einen kurzlebigen Validierungsreport als Artefakt.
 - Pro Versuch gilt ein Zeitlimit von 20 Minuten. Der Workflow hat keinen Zeitplan und keine automatische Wiederholung außerhalb dieser drei Versuche.
 - `effort: low`, `--ephemeral` und die Begrenzung auf die vorhandenen Qualitätsbefehle begrenzen die laufenden Kosten. Die tatsächliche OpenAI-Abrechnung bleibt vom Projekt-/Account-Limit abhängig und wird nicht durch den Workflow selbst festgelegt.
+
+## Kommunikation und Fehlerbehebung
+
+Jeder kontrollierte Agentenversuch schreibt zwei nachvollziehbare Issue-Kommentare:
+
+1. **START** mit Versuch 1/3, Branch, Workflow-Lauf und den angekündigten Prüfungen.
+2. **ERFOLGREICH** oder **FEHLGESCHLAGEN** mit Codex-Ergebnis, fehlgeschlagenen Prüfungen, konkretem nächsten Schritt und einer redigierten Kurzmeldung des Agents.
+
+Der vollständige Validierungsreport und die redigierte Abschlussmeldung werden sieben Tage als Workflow-Artefakt aufbewahrt. API-Schlüssel, GitHub-/Supabase-Tokens und Bearer-Tokens werden vor Kommentar und Artefakt redigiert. Der temporäre Prompt und die nicht redigierte Abschlussmeldung werden nicht in den Feature-Branch committed.
+
+Die Kommunikationsregel ändert keine Sicherheitsgrenzen: Der Agent darf weiterhin keine Workflows, Secrets oder Produktions-/Cloud-Konfiguration ändern. Lokale/testbare Migrationen und Schema-/Datenbankänderungen sind nur bei der geprüften `ALLOW_LOCAL_MIGRATIONS`-Freigabe erlaubt; ohne diese Freigabe bleibt der Auftrag blockiert. Ein fachlicher Blocker wird als Blocker gemeldet und nicht durch eine eigene Produktentscheidung ersetzt.
+
 
 ## Prüfungen und Übergabe
 
@@ -78,3 +90,7 @@ Die Dokumentation ist die einzige im Auftrag bearbeitete Datei; Supabase-Migrati
 ### Erneute Prüfung am 14.11.2026
 
 Auf `codex/agent-9` wurden `npm run typecheck`, `npm run lint`, `npm run test:unit` (43 Tests in fünf Dateien) und `npm run build:client` erneut erfolgreich ausgeführt (jeweils Exit-Code 0). Vitest konnte die GitHub-Schrittzusammenfassung wegen eines schreibgeschützten Pfads weiterhin nicht speichern; der Build meldete weiterhin die Chunk-Größenwarnung. Es wurden keine Supabase-Migrationen oder Datenbankänderungen ausgeführt. Der erfolgreiche lokale Prüflauf bestätigt noch nicht die anschließende Draft-PR-Erstellung oder deren CI-Ergebnisse; diese bleiben durch Pipeline und manuelle Kontrolle nachzuweisen.
+
+### Erneute Prüfung am 15.11.2026
+
+Auf `codex/agent-9` lief `npm run build` erfolgreich mit Exit-Code 0 durch: Typecheck, Lint, 43 Unit-Tests in fünf Dateien und Client-Build bestanden. Weiterhin gemeldet wurden der schreibgeschützte Pfad für die GitHub-Schrittzusammenfassung und die Chunk-Größenwarnung. Ausschließlich diese Dokumentation wurde bearbeitet; Datenbank-, Cloud- und Produktionszugriffe sowie Supabase-Migrationen wurden nicht ausgeführt. Commit und Draft-PR gegen `main` übernimmt anschließend die Pipeline; deren CI-Ergebnisse und die manuelle Diff-Kontrolle bleiben offen.

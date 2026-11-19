@@ -125,7 +125,7 @@ Die App soll Erwachsene und Kinder ohne technische Vorkenntnisse zuverlässig be
 
 ## A.4 – Push-Benachrichtigungen und Erinnerungen
 
-**BESCHLOSSEN:** FamilyHub kann Push-Nachrichten etwa zu Terminen versenden. In der anfänglichen Familie sind als **fachliche Empfängerwahl** vorgesehen: **Patricia, Hannah, Helena, Sebastian, Alle**.
+**BESCHLOSSEN:** FamilyHub kann Push-Nachrichten etwa zu Terminen versenden. In der anfänglichen Familie sind als **fachliche Empfängerwahl** vorgesehen: **Mitglied A, Mitglied B, Mitglied C, Mitglied D, Alle**.
 
 Diese Namen sind UI-Optionen der ersten Familie, **keine globale, hartkodierte Datenstruktur**. Jede Benachrichtigung braucht eine familienbezogene, autorisierte Empfängerauflösung. „Alle“ bezieht sich auf die jeweils fachlich zulässige Empfängermenge der betroffenen Familie, nicht auf sämtliche App-Nutzer.
 
@@ -216,7 +216,7 @@ Diese Namen sind UI-Optionen der ersten Familie, **keine globale, hartkodierte D
 | A-KAL-03 | Reale Termine und Unterrichtsprojektionen unterscheiden | BESCHLOSSEN |
 | A-KAL-04 | Serien/Einzelausnahmen konsistent behandeln | BESCHLOSSENES Qualitätsziel; Detail offen |
 | A-SCH-01 | Schuljahre, Stundenplanversionen, Rotation, Ferien/Ausnahmen berücksichtigen | ARCHITEKTUR-BASIS; Detail offen |
-| A-PUSH-01 | Empfängerauswahl Patricia/Hannah/Helena/Sebastian/Alle | BESCHLOSSEN |
+| A-PUSH-01 | Empfängerauswahl Mitglied A/Mitglied B/Mitglied C/Mitglied D/Alle | BESCHLOSSEN |
 | A-PUSH-02 | Berechtigung und Sichtbarkeit auch bei Benachrichtigung wahren | BESCHLOSSEN |
 | A-IMP-01 | Notwendige Importe inkl. Foto/PDF in R1 | BESCHLOSSEN |
 | A-IMP-02 | Entwurf-/Prüf-/Übernahmepipeline | AUS PHASE B ABGELEITET |

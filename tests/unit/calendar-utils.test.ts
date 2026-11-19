@@ -6,9 +6,22 @@ import {
   monthCells,
   nextLocalDate,
   oneHourAfter,
+  dateTimeInputInZone,
+  dateTimeInputToIso,
 } from "../../apps/client/src/calendar/calendar-utils";
 
 describe("calendar date helpers", () => {
+  it.each([
+    ["2026-03-28T23:00:00Z", "2026-03-29T22:00:00Z", "Europe/Berlin", "2026-03-29"],
+    ["2026-10-24T22:00:00Z", "2026-10-25T23:00:00Z", "Europe/Berlin", "2026-10-25"],
+    ["2026-12-31T10:00:00Z", "2027-01-01T10:00:00Z", "Pacific/Honolulu", "2026-12-31"],
+  ])("ordnet exklusive Tagesgrenzen in %s bis %s (%s) ohne Zusatzvorkommen zu", (starts_at, ends_at, time_zone, day) => {
+    const event = { is_all_day: false, starts_at, ends_at, time_zone, start_date: null, end_date_exclusive: null };
+    const visibleDays = [...monthCells(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1)]
+      .filter((candidate) => eventOnDay(event, candidate));
+    expect(visibleDays).toEqual([day]);
+  });
+
   it("builds 42 visible days from Monday through Sunday including neighboring months", () => {
     const november = monthCells(2026, 10);
     expect(november).toHaveLength(42);
@@ -74,5 +87,17 @@ describe("calendar date helpers", () => {
     expect(eventOnDay(event, "2026-10-26")).toBe(false);
     expect(monthCells(2027, 0)[0]).toBe("2026-12-28");
     expect(monthCells(2028, 1)).toContain("2028-02-29");
+  });
+
+  it("bearbeitet Zeiten in der Ereigniszeitzone statt in der Browserzeitzone", () => {
+    const iso = dateTimeInputToIso("2026-11-15T10:30", "Europe/Berlin");
+    expect(iso).toBe("2026-11-15T09:30:00.000Z");
+    expect(dateTimeInputInZone(iso, "Europe/Berlin")).toBe("2026-11-15T10:30");
+    expect(oneHourAfter("2026-11-15T10:30", "Europe/Berlin")).toBe("2026-11-15T11:30");
+  });
+
+  it("weist nicht existente lokale Zeiten beim Frühjahrswechsel zurück", () => {
+    expect(dateTimeInputToIso("2026-03-29T02:30", "Europe/Berlin")).toBeNull();
+    expect(dateTimeInputToIso("2026-10-25T02:30", "Europe/Berlin")).toBe("2026-10-25T00:30:00.000Z");
   });
 });
