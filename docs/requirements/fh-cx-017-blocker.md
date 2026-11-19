@@ -1,5 +1,8 @@
 # FH-CX-017 – Kontrollierter Blocker zu Issue #23
 
+Historischer Stand vom 15.11.2026. Der danach freigegebene Teilumfang ist in
+[FH-CX-017 – Push-Subscription-Grundlage](fh-cx-017.md) dokumentiert.
+
 Stand: 15.11.2026. **Status: blockiert; keine Push-Subscription-Funktion implementiert.**
 Geprüfter Feature-Branch: `codex/agent-23`.
 

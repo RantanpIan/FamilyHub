@@ -1,9 +1,31 @@
+import type { PushProvider, PushSubscriptionRegistration } from "@familyhub/notifications-domain";
+
+type PushSubscriptionArgs = {
+  p_family_id: string;
+  p_provider: PushProvider;
+  p_subscription_key: string;
+};
+
+type PushSubscriptionRow = {
+  family_id: string;
+  user_id: string;
+  provider: PushProvider;
+  subscription_key: string;
+  credentials: PushSubscriptionRegistration["credentials"];
+};
+
 export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "12";
   };
   public: {
     Tables: {
+      push_subscriptions: {
+        Row: PushSubscriptionRow;
+        Insert: PushSubscriptionRow;
+        Update: Partial<PushSubscriptionRow>;
+        Relationships: [];
+      };
       families: {
         Row: {
           id: string;
@@ -526,6 +548,18 @@ export type Database = {
     };
     Views: { [_ in never]: never };
     Functions: {
+      register_push_subscription_v1: {
+        Args: PushSubscriptionArgs & { p_credentials: PushSubscriptionRow["credentials"] };
+        Returns: undefined;
+      };
+      revoke_push_subscription_v1: {
+        Args: PushSubscriptionArgs;
+        Returns: undefined;
+      };
+      list_push_subscriptions_v1: {
+        Args: { p_family_id: string };
+        Returns: { provider: PushProvider; subscription_key: string }[];
+      };
       create_calendar_event_for_member: {
         Args: {
           p_family_id: string;
