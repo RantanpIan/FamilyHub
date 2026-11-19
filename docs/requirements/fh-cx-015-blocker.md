@@ -143,3 +143,28 @@ isolierte Testdatenbank eindeutig festlegt.
 
 Der Bericht ist die einzige Änderung dieses Laufs. Es wurde keine Datenbank
 geändert und keine externe Zustellung ausgeführt.
+
+## Aktueller Lauf mit lokaler Migrationsfreigabe
+
+`ALLOW_LOCAL_MIGRATIONS=true` und die ausdrückliche Issue-Freigabe liegen
+vor. Der frühere Freigabeblocker für Migrationsdateien ist damit aufgehoben.
+FH-CX-014 ist im Branch durch die Migration zum Zeitvertrag vertreten.
+Die Freigabe umfasst auch einen minimalen lokalen Outbox-Vertrag.
+
+FH-CX-015 bleibt fachlich blockiert. Für die vorgeschriebene erneute
+Autorisierung vor der internen Zustellung fehlt ein verbindlicher Vertrag
+für Empfänger und wirksame Einstellungen. Das Benachrichtigungsmodul
+meldet sich als nicht verfügbar. Die vorhandene Empfängerauswahl kodiert
+einen Wunsch, liefert aber keine aktuell berechtigte und konfigurierte
+Empfängermenge. FH-CX-017 und FH-CX-018 sind im Branch nicht implementiert.
+Ein lokaler Worker müsste dafür eine neue Berechtigungsregel einführen,
+etwa den Anfordernden als impliziten Empfänger behandeln. Dafür liegt
+keine fachliche Freigabe vor.
+
+Für Einzeltermine ist außerdem nur die Löschung implementiert. Eine
+Absage gibt es im Kalendervertrag für Serienausnahmen. Die Behandlung
+einer Absage als Löschung würde den Kalendervertrag fachlich verändern.
+
+Die menschliche Entscheidung betrifft den lokalen Reminder-Vertrag für
+Empfänger, wirksame Einstellungen und den Absagezustand von Einzelterminen.
+Es wurde keine Produktänderung vorgenommen.
