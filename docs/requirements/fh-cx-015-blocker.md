@@ -120,3 +120,82 @@ Browserfälle ausgeführt. Diese Prüfungen belegen keine Reminder-Funktion.
 Integrations-/RLS- und datenbankgestützte E2E-Tests bleiben wegen ihrer
 schreibenden Fixtures unausgeführt. Änderungen beschränken sich auf diesen
 Bericht; vorhandene unversionierte Automationsdateien bleiben erhalten.
+
+## Erneute Prüfung am 19.11.2026
+
+Der aktuelle Issue-Text erlaubt ausdrücklich lokale/testbare Migrationen und
+minimale Persistenzbausteine. Die verbindlichen Regeln außerhalb des Issue-Texts
+verbieten Änderungen an Migrationen, Schema- und Datenbankdateien. Für diesen
+Lauf gilt dieses Verbot. Die vorhandenen Kalenderoperationen bieten weiterhin
+keine transaktionale Kopplung mit Reminder-Persistenz oder Zustellungsdeduplizierung.
+FH-CX-015 bleibt blockiert. Für die Umsetzung braucht es eine Freigabe außerhalb
+des Issue-Texts, die den erlaubten Umfang für Migrationen, RPCs, RLS und die
+isolierte Testdatenbank eindeutig festlegt.
+
+- `npm run build` war erfolgreich. Typecheck, Lint, 49 Unit-Tests und
+  Client-Build liefen durch. Der Summary-Reporter meldete `EROFS`, Vite meldete
+  ein Bundle über 500 kB.
+- `npm run test:e2e -- tests/e2e/smoke.spec.ts tests/e2e/calendar-navigation.spec.ts`
+  endete mit Exit 1 beim Start des konfigurierten Webservers. Es wurden keine
+  Browserfälle ausgeführt.
+- `npm run test:integration` und datenbankgestützte E2E-Prüfungen wurden wegen
+  schreibender Fixtures nicht ausgeführt. Reminder-spezifische Nachweise bleiben offen.
+
+Der Bericht ist die einzige Änderung dieses Laufs. Es wurde keine Datenbank
+geändert und keine externe Zustellung ausgeführt.
+
+## Aktueller Lauf mit lokaler Migrationsfreigabe
+
+`ALLOW_LOCAL_MIGRATIONS=true` und die ausdrückliche Issue-Freigabe liegen
+vor. Der frühere Freigabeblocker für Migrationsdateien ist damit aufgehoben.
+FH-CX-014 ist im Branch durch die Migration zum Zeitvertrag vertreten.
+Die Freigabe umfasst auch einen minimalen lokalen Outbox-Vertrag.
+
+FH-CX-015 bleibt fachlich blockiert. Für die vorgeschriebene erneute
+Autorisierung vor der internen Zustellung fehlt ein verbindlicher Vertrag
+für Empfänger und wirksame Einstellungen. Das Benachrichtigungsmodul
+meldet sich als nicht verfügbar. Die vorhandene Empfängerauswahl kodiert
+einen Wunsch, liefert aber keine aktuell berechtigte und konfigurierte
+Empfängermenge. FH-CX-017 und FH-CX-018 sind im Branch nicht implementiert.
+Ein lokaler Worker müsste dafür eine neue Berechtigungsregel einführen,
+etwa den Anfordernden als impliziten Empfänger behandeln. Dafür liegt
+keine fachliche Freigabe vor.
+
+Für Einzeltermine ist außerdem nur die Löschung implementiert. Eine
+Absage gibt es im Kalendervertrag für Serienausnahmen. Die Behandlung
+einer Absage als Löschung würde den Kalendervertrag fachlich verändern.
+
+Die menschliche Entscheidung betrifft den lokalen Reminder-Vertrag für
+Empfänger, wirksame Einstellungen und den Absagezustand von Einzelterminen.
+Es wurde keine Produktänderung vorgenommen.
+
+## Prüfung mit FH-CX-017 und FH-CX-018 im Feature-Branch
+
+Die lokale Migrationsfreigabe liegt vor. Die Migrationen
+`20261119120000_create_push_subscriptions.sql` und
+`20261119130000_resolve_calendar_recipients.sql` stellen inzwischen die
+Subscription-Verwaltung und die familienbezogene Auflösung berechtigter
+Kalenderleser bereit. Das korrigiert den Befund des vorherigen Laufs.
+
+**Status FH-CX-015: fachlich blockiert.** FH-CX-018 verweist für die erneute
+Prüfung wirksamer Einstellungen auf FH-CX-019. Der zugehörige
+Einstellungsvertrag fehlt im Branch. Eine registrierte Subscription und
+Leseberechtigung belegen keine wirksame Reminder-Einstellung. Für die
+interne Zustellungsgrenze braucht der Auftrag einen freigegebenen Vertrag,
+der die Einstellung und das Verhalten bei fehlender Einstellung definiert.
+Für Einzeltermine bietet der Kalendervertrag eine Löschung. Absagen sind
+als Serienausnahme modelliert. Zu klären ist, ob das Absagekriterium nur
+Serienvorkommen meint oder einen eigenen Einzelterminzustand voraussetzt.
+
+- `npm run build` war erfolgreich. Typecheck, Lint, 73 Unit-Tests und
+  Client-Build liefen durch. Der Summary-Reporter meldete `EROFS`, Vite
+  meldete einen Chunk über 500 kB.
+- `npm run test:e2e -- tests/e2e/smoke.spec.ts tests/e2e/calendar-navigation.spec.ts`
+  endete mit Exit 1 beim Start von `config.webServer`. Keine Browserfälle liefen.
+- Integration, RLS und Reminder-E2E bleiben offen. Ein Reminder-Vertrag zur
+  Prüfung fehlt. Es wurde keine Migration erstellt oder ausgeführt und
+  keine externe Zustellung ausgelöst.
+
+Keine Produktänderung. Der Repository-Eigentümer kann den Vertrag für die
+interne Zustellungsfreigabe und den Geltungsbereich der Absage in Issue #21
+festlegen, ohne Vorlaufzeiten, Ruhezeiten oder Payload-Defaults vorwegzunehmen.
