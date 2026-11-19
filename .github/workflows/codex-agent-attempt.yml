@@ -157,7 +157,7 @@ jobs:
           } > "$report"
 
           rm -f .github/codex/runtime-prompt.md
-          changed_files="$( { git diff --name-only origin/main...HEAD; git diff --name-only; git ls-files --others --exclude-standard; } | grep -Ev '^(validation-report\\.md|\\.github/codex/(runtime-prompt|codex-final-message|codex-final-message-redacted)\\.txt)
+          changed_files="$( { git diff --name-only origin/main...HEAD; git diff --name-only; git ls-files --others --exclude-standard; } | grep -Ev '^(validation-report\\.md|\\.github/codex/(runtime-prompt|codex-final-message|codex-final-message-redacted)\\.txt)$' | sort -u )"
           if [[ -z "$changed_files" ]]; then
             echo "- Ergebnis: FEHLER – keine Änderung erzeugt." >> "$report"
             failure_reasons+=("keine Branch-Änderung")
