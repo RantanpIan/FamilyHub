@@ -186,6 +186,78 @@ describe("FH-CX-008 calendar event schema and RLS", () => {
     expect(read.error).not.toBeNull();
   });
 
+  async function resolveRecipients(
+    client: typeof service,
+    resourceId: string,
+    memberIds?: string[],
+  ) {
+    const result = await client.rpc("resolve_calendar_recipients_v1", {
+      p_resource_id: resourceId,
+      p_kind: memberIds ? "selected_members" : "all",
+      p_member_ids: memberIds ?? [],
+    });
+    expect(result.error).toBeNull();
+    return result.data;
+  }
+
+  it("FH-CX-018 resolves current family accounts deterministically and filters explicit selections", async () => {
+    const ownerRecipient = { member_id: ownerMemberId, user_id: owner.id };
+    const readerRecipient = { member_id: readerMemberId, user_id: reader.id };
+    const expected = [ownerRecipient, readerRecipient].sort((a, b) =>
+      a.member_id.localeCompare(b.member_id),
+    );
+    expect(await resolveRecipients(reader.client, sharedId)).toEqual(expected);
+    expect(await resolveRecipients(reader.client, sharedId)).toEqual(expected);
+    expect(await resolveRecipients(owner.client, sharedId, [
+      readerMemberId, readerMemberId, otherMemberId, randomUUID(),
+    ])).toEqual([readerRecipient]);
+    expect(await resolveRecipients(outsider.client, sharedId)).toEqual([]);
+    expect(await resolveRecipients(owner.client, randomUUID())).toEqual([]);
+  });
+
+  it("FH-CX-018 reapplies private ownership, explicit grants and revocations", async () => {
+    const ownerRecipient = { member_id: ownerMemberId, user_id: owner.id };
+    const readerRecipient = { member_id: readerMemberId, user_id: reader.id };
+    const grantArgs = { p_resource_id: privateId, p_grantee_member_id: readerMemberId };
+    expect(await resolveRecipients(owner.client, privateId)).toEqual([ownerRecipient]);
+    expect(await resolveRecipients(reader.client, privateId)).toEqual([]);
+
+    expect((await owner.client.rpc("grant_resource_read", grantArgs)).error).toBeNull();
+    try {
+      expect(await resolveRecipients(reader.client, privateId, [readerMemberId]))
+        .toEqual([readerRecipient]);
+      expect(await resolveRecipients(owner.client, privateId, [readerMemberId]))
+        .toEqual([readerRecipient]);
+    } finally {
+      expect((await owner.client.rpc("revoke_resource_read", grantArgs)).error).toBeNull();
+    }
+    expect(await resolveRecipients(reader.client, privateId)).toEqual([]);
+    expect(await resolveRecipients(owner.client, privateId, [readerMemberId])).toEqual([]);
+  });
+
+  it("FH-CX-018 rejects anonymous calls and reflects membership changes in an existing session", async () => {
+    const anonymous = createClient<Database, "public">(url, anon, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const denied = await anonymous.rpc("resolve_calendar_recipients_v1", {
+      p_resource_id: sharedId,
+      p_kind: "all",
+    });
+    expect(denied.error?.code).toBe("42501");
+    expect(denied.data).toBeNull();
+
+    const updateMembership = (status: "active" | "revoked") =>
+      service.from("family_memberships").update({ status })
+        .eq("family_id", familyId).eq("member_id", readerMemberId);
+    expect((await updateMembership("revoked")).error).toBeNull();
+    try {
+      expect(await resolveRecipients(reader.client, sharedId)).toEqual([]);
+      expect(await resolveRecipients(owner.client, sharedId, [readerMemberId])).toEqual([]);
+    } finally {
+      expect((await updateMembership("active")).error).toBeNull();
+    }
+  });
+
   it("CAL-DB-T04: invalid intervals and mixed date/time representations are rejected", async () => {
     const resource = await createResource(owner, familyId, ownerMemberId, "calendar_event");
     const invalid = await service.from("calendar_events").insert({
