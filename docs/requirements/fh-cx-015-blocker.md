@@ -168,3 +168,34 @@ einer Absage als Löschung würde den Kalendervertrag fachlich verändern.
 Die menschliche Entscheidung betrifft den lokalen Reminder-Vertrag für
 Empfänger, wirksame Einstellungen und den Absagezustand von Einzelterminen.
 Es wurde keine Produktänderung vorgenommen.
+
+## Prüfung mit FH-CX-017 und FH-CX-018 im Feature-Branch
+
+Die lokale Migrationsfreigabe liegt vor. Die Migrationen
+`20261119120000_create_push_subscriptions.sql` und
+`20261119130000_resolve_calendar_recipients.sql` stellen inzwischen die
+Subscription-Verwaltung und die familienbezogene Auflösung berechtigter
+Kalenderleser bereit. Das korrigiert den Befund des vorherigen Laufs.
+
+**Status FH-CX-015: fachlich blockiert.** FH-CX-018 verweist für die erneute
+Prüfung wirksamer Einstellungen auf FH-CX-019. Der zugehörige
+Einstellungsvertrag fehlt im Branch. Eine registrierte Subscription und
+Leseberechtigung belegen keine wirksame Reminder-Einstellung. Für die
+interne Zustellungsgrenze braucht der Auftrag einen freigegebenen Vertrag,
+der die Einstellung und das Verhalten bei fehlender Einstellung definiert.
+Für Einzeltermine bietet der Kalendervertrag eine Löschung. Absagen sind
+als Serienausnahme modelliert. Zu klären ist, ob das Absagekriterium nur
+Serienvorkommen meint oder einen eigenen Einzelterminzustand voraussetzt.
+
+- `npm run build` war erfolgreich. Typecheck, Lint, 73 Unit-Tests und
+  Client-Build liefen durch. Der Summary-Reporter meldete `EROFS`, Vite
+  meldete einen Chunk über 500 kB.
+- `npm run test:e2e -- tests/e2e/smoke.spec.ts tests/e2e/calendar-navigation.spec.ts`
+  endete mit Exit 1 beim Start von `config.webServer`. Keine Browserfälle liefen.
+- Integration, RLS und Reminder-E2E bleiben offen. Ein Reminder-Vertrag zur
+  Prüfung fehlt. Es wurde keine Migration erstellt oder ausgeführt und
+  keine externe Zustellung ausgelöst.
+
+Keine Produktänderung. Der Repository-Eigentümer kann den Vertrag für die
+interne Zustellungsfreigabe und den Geltungsbereich der Absage in Issue #21
+festlegen, ohne Vorlaufzeiten, Ruhezeiten oder Payload-Defaults vorwegzunehmen.
