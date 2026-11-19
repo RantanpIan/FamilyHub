@@ -165,17 +165,40 @@ jobs:
           } > "$report"
 
           rm -f .github/codex/runtime-prompt.md
-          changed_files="$( { git diff --name-only origin/main...HEAD; git diff --name-only; git ls-files --others --exclude-standard; } | grep -Ev '^(validation-report\\.md|\\.github/codex/(runtime-prompt|codex-final-message|codex-final-message-redacted)\\.txt)$' | sort -u )"
+          changed_files="$(
+            { git diff --name-only origin/main...HEAD; git diff --name-only; git ls-files --others --exclude-standard; } |
+              sort -u |
+              while IFS= read -r file; do
+                case "$file" in
+                  ""|validation-report.md|.github/codex/runtime-prompt.md|.github/codex/codex-final-message.txt|.github/codex/codex-final-message-redacted.txt)
+                    ;;
+                  *)
+                    printf '%s\n' "$file"
+                    ;;
+                esac
+              done
+          )"
           if [[ -z "$changed_files" ]]; then
             echo "- Ergebnis: FEHLER – keine Änderung erzeugt." >> "$report"
             failure_reasons+=("keine Branch-Änderung")
             failed=1
           fi
 
-          protected_files="$(printf '%s\n' "$changed_files" | grep -E '^(\.github/workflows/|\.github/ISSUE_TEMPLATE/|\.github/codex/|supabase/config\.toml$|AGENTS\.md$|01-fachkonzept\.md$|02-architektur\.md$|04-entscheidungen\.md$|.*\.env($|\.)|.*\.(pem|key)$|package-lock\.json$)' || true)"
+          protected_files="$(
+            printf '%s\n' "$changed_files" |
+              while IFS= read -r file; do
+                case "$file" in
+                  .github/workflows/*|.github/ISSUE_TEMPLATE/*|.github/codex/*|supabase/config.toml|AGENTS.md|01-fachkonzept.md|02-architektur.md|04-entscheidungen.md|*.env|*.env.*|*.pem|*.key|package-lock.json)
+                    printf '%s\n' "$file"
+                    ;;
+                esac
+              done
+          )"
           if [[ -n "$protected_files" ]]; then
             echo "- Ergebnis: FEHLER – geschützte Dateien geändert:" >> "$report"
-            printf '  - `%s`\n' $protected_files >> "$report"
+            while IFS= read -r protected_file; do
+              [[ -n "$protected_file" ]] && printf '  - %s\n' "$protected_file" >> "$report"
+            done <<< "$protected_files"
             failure_reasons+=("geschützte Dateien geändert")
             failed=1
           fi
