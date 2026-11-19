@@ -548,6 +548,14 @@ export type Database = {
     };
     Views: { [_ in never]: never };
     Functions: {
+      resolve_calendar_recipients_v1: {
+        Args: {
+          p_resource_id: string;
+          p_kind: "all" | "selected_members";
+          p_member_ids?: string[];
+        };
+        Returns: { member_id: string; user_id: string }[];
+      };
       register_push_subscription_v1: {
         Args: PushSubscriptionArgs & { p_credentials: PushSubscriptionRow["credentials"] };
         Returns: undefined;
