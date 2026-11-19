@@ -157,7 +157,193 @@ jobs:
           } > "$report"
 
           rm -f .github/codex/runtime-prompt.md
-          changed_files="$( { git diff --name-only origin/main...HEAD; git diff --name-only; git ls-files --others --exclude-standard; } | sort -u )"
+          changed_files="$( { git diff --name-only origin/main...HEAD; git diff --name-only; git ls-files --others --exclude-standard; } | grep -Ev '^(validation-report\\.md|\\.github/codex/(runtime-prompt|codex-final-message|codex-final-message-redacted)\\.txt)
+          if [[ -z "$changed_files" ]]; then
+            echo "- Ergebnis: FEHLER – keine Änderung erzeugt." >> "$report"
+            failure_reasons+=("keine Branch-Änderung")
+            failed=1
+          fi
+
+          protected_files="$(printf '%s\n' "$changed_files" | grep -E '^(\.github/workflows/|\.github/ISSUE_TEMPLATE/|\.github/codex/|supabase/config\.toml$|AGENTS\.md$|01-fachkonzept\.md$|02-architektur\.md$|04-entscheidungen\.md$|.*\.env($|\.)|.*\.(pem|key)$|package-lock\.json$)' || true)"
+          if [[ -n "$protected_files" ]]; then
+            echo "- Ergebnis: FEHLER – geschützte Dateien geändert:" >> "$report"
+            printf '  - `%s`\n' $protected_files >> "$report"
+            failure_reasons+=("geschützte Dateien geändert")
+            failed=1
+          fi
+
+          migration_files="$(printf '%s\n' "$changed_files" | grep -E '^supabase/migrations/.*\.sql$' || true)"
+          if [[ -n "$migration_files" && "$ALLOW_LOCAL_MIGRATIONS" != "true" ]]; then
+            echo "- Ergebnis: FEHLER – Migrationen sind für diesen Auftrag nicht ausdrücklich lokal/testweise freigegeben:" >> "$report"
+            printf '  - `%s`\n' $migration_files >> "$report"
+            failure_reasons+=("Migration ohne lokale Freigabe")
+            failed=1
+          fi
+
+          if ! git diff --check >> "$report" 2>&1; then
+            echo "- Ergebnis: FEHLER – Whitespace-/Patch-Prüfung fehlgeschlagen." >> "$report"
+            failure_reasons+=("Patch-/Whitespace-Prüfung")
+            failed=1
+          fi
+
+          run_check() {
+            local label="$1"
+            shift
+            echo "## ${label}" >> "$report"
+            if "$@" >> "$report" 2>&1; then
+              echo "Ergebnis: bestanden" >> "$report"
+            else
+              echo "Ergebnis: fehlgeschlagen" >> "$report"
+              failure_reasons+=("$label")
+              failed=1
+            fi
+            echo >> "$report"
+          }
+
+          if [[ "$failed" -eq 0 ]]; then
+            run_check "Typecheck" npm run typecheck
+            run_check "Lint" npm run lint
+            run_check "Unit-Tests" npm run test:unit
+            run_check "Client-Build" npm run build:client
+          else
+            echo "Qualitätsprüfungen wegen geschützter/fehlender Änderung übersprungen." >> "$report"
+          fi
+
+          if [[ "$failed" -eq 0 && "${{ steps.codex.outcome }}" == "success" ]]; then
+            echo "passed=true" >> "$GITHUB_OUTPUT"
+            echo "- Gesamtergebnis: bestanden" >> "$report"
+          else
+            echo "passed=false" >> "$GITHUB_OUTPUT"
+            if [[ "${{ steps.codex.outcome }}" != "success" ]]; then
+              failure_reasons+=("Codex-Ausführung")
+            fi
+            failure_summary="${failure_reasons[*]:-unbekannte Ursache; Workflow-Bericht prüfen}"
+            echo "- Gesamtergebnis: fehlgeschlagen" >> "$report"
+            echo "- Sichere Kurzursache: ${failure_summary}" >> "$report"
+          fi
+
+      - name: Prepare redacted Codex summary
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const sourcePath = '.github/codex/codex-final-message.txt';
+          let message = fs.existsSync(sourcePath)
+            ? fs.readFileSync(sourcePath, 'utf8').trim()
+            : 'Keine Codex-Abschlussmeldung wurde erzeugt.';
+          message = message
+            .replace(/sk-[A-Za-z0-9_-]{16,}/g, '[REDACTED_OPENAI_KEY]')
+            .replace(/gh[pousr]_[A-Za-z0-9_]{16,}/g, '[REDACTED_GITHUB_TOKEN]')
+            .replace(/github_pat_[A-Za-z0-9_]{16,}/g, '[REDACTED_GITHUB_TOKEN]')
+            .replace(/sbp_[A-Za-z0-9_-]{16,}/g, '[REDACTED_SUPABASE_TOKEN]')
+            .replace(/Bearer\s+[A-Za-z0-9._-]{16,}/gi, 'Bearer [REDACTED_TOKEN]');
+          if (message.length > 4000) message = message.slice(0, 4000) + '\n[gekürzt]';
+          fs.mkdirSync('.github/codex', { recursive: true });
+          fs.writeFileSync('.github/codex/codex-final-message-redacted.txt', message + '\n', 'utf8');
+          NODE
+
+      - name: Upload attempt report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fh-auto-001-issue-${{ inputs.issue-number }}-attempt-${{ inputs.attempt }}
+          path: |
+            validation-report.md
+            .github/codex/codex-final-message-redacted.txt
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Publish attempt result
+        if: always()
+        continue-on-error: true
+        uses: actions/github-script@v7
+        env:
+          ISSUE_NUMBER: ${{ inputs.issue-number }}
+          ATTEMPT: ${{ inputs.attempt }}
+          AGENT_BRANCH: ${{ inputs.branch }}
+          VERIFY_PASSED: ${{ steps.verify.outputs.passed || 'false' }}
+          CODEX_OUTCOME: ${{ steps.codex.outcome }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const fs = require('node:fs');
+            const issueNumber = Number(process.env.ISSUE_NUMBER);
+            const passed = process.env.VERIFY_PASSED === 'true';
+            const report = fs.existsSync('validation-report.md')
+              ? fs.readFileSync('validation-report.md', 'utf8')
+              : 'Kein Validierungsreport vorhanden.';
+            const summary = fs.existsSync('.github/codex/codex-final-message-redacted.txt')
+              ? fs.readFileSync('.github/codex/codex-final-message-redacted.txt', 'utf8').trim()
+              : 'Keine redigierte Codex-Abschlussmeldung vorhanden.';
+            const lines = report.split(/\r?\n/);
+            const failedChecks = [];
+            for (let i = 0; i < lines.length; i += 1) {
+              if (lines[i] === 'Ergebnis: fehlgeschlagen') {
+                const label = [...lines.slice(0, i)].reverse().find((line) => line.startsWith('## '));
+                const detail = lines.slice(i + 1, i + 8)
+                  .filter((line) => line.trim())
+                  .join(' ')
+                  .slice(0, 500);
+                failedChecks.push(`${label ? label.slice(3) : 'Unbekannte Prüfung'}${detail ? `: ${detail}` : ''}`);
+              }
+            }
+            const shortCause = lines.find((line) => line.startsWith('- Sichere Kurzursache:'));
+            if (shortCause) failedChecks.unshift(shortCause.replace('- Sichere Kurzursache: ', ''));
+            const runUrl = `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const status = passed ? 'ERFOLGREICH' : 'FEHLGESCHLAGEN';
+            const next = passed
+              ? 'Nächster Schritt: Der Feature-Branch wird veröffentlicht; danach erstellt die Abschlussstufe den Draft-PR.'
+              : 'Nächster Schritt: Öffne den Lauf und das Artefakt, behebe zuerst die genannten Prüfungen oder ergänze den Issue um die fehlende fachliche Entscheidung. Danach agent-ready erneut bewusst setzen.';
+            const quotedSummary = summary.split(/\r?\n/).slice(0, 12).map((line) => `> ${line}`).join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: [
+                `FH-AUTO-001 ${status}: Versuch ${process.env.ATTEMPT}/3 für Issue #${issueNumber}.`,
+                '',
+                `- Branch: \`${process.env.AGENT_BRANCH}\``,
+                `- Lauf: ${runUrl}`,
+                `- Codex-Schritt: ${process.env.CODEX_OUTCOME}`,
+                failedChecks.length ? `- Fehlgeschlagene Prüfungen: ${failedChecks.join(' | ')}` : '- Fehlgeschlagene Prüfungen: keine',
+                `- ${next}`,
+                '',
+                'Kurzbericht des Agents (redigiert):',
+                quotedSummary,
+                '',
+                'Der vollständige Validierungsreport und die redigierte Abschlussmeldung liegen 7 Tage als Workflow-Artefakt vor.',
+              ].join('\n'),
+            });
+
+
+      - name: Commit and push only the feature branch
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -f validation-report.md .github/codex/runtime-prompt.md .github/codex/codex-final-message.txt .github/codex/codex-final-message-redacted.txt
+          if [[ -z "$(git status --porcelain)" ]]; then
+            echo "Keine Branch-Änderung zum Veröffentlichen; der Versuch wird als fehlgeschlagen behandelt." >&2
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "chore(agent): attempt ${ATTEMPT} for issue #${ISSUE_NUMBER}"
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push "$remote" "HEAD:refs/heads/${AGENT_BRANCH}"
+
+      - name: Fail the attempt when validation did not pass
+        if: steps.verify.outputs.passed != 'true'
+        shell: bash
+        run: exit 1
+
+
+ | sort -u )"
           if [[ -z "$changed_files" ]]; then
             echo "- Ergebnis: FEHLER – keine Änderung erzeugt." >> "$report"
             failure_reasons+=("keine Branch-Änderung")
