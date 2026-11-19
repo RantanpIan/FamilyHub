@@ -33,7 +33,7 @@ permissions:
 jobs:
   run:
     name: Execute and validate attempt ${{ inputs.attempt }}/3
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       ISSUE_NUMBER: ${{ inputs.issue-number }}
