@@ -393,7 +393,18 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue.number,
-              body: `FH-AUTO-001 erfolgreich übergeben: Draft-PR #${pr.number} auf ${branch}. Bitte CI, Diff, Akzeptanzkriterien und Branch-Regeln manuell prüfen; kein automatischer Merge.`,
+              body: [
+                `FH-AUTO-001 READY: Draft-PR #${pr.number} auf ${branch} wurde erstellt bzw. wiederverwendet.`,
+                '',
+                'Nächste Schritte:',
+                '1. CI-Prüfungen und Diff prüfen.',
+                '2. Akzeptanzkriterien, Datenschutz/RLS und Branch-Regeln prüfen.',
+                '3. PR auf „Ready for review“ setzen und nach menschlicher Freigabe manuell mergen.',
+                '4. Issue erst nach erfolgreichem Merge schließen.',
+                '',
+                'Kein automatischer Merge und keine Produktions-/Cloud-Datenbankänderung.',
+                `Workflow-Lauf: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              ].join('\\n'),
             });
             try {
               await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, name: 'agent-queued' });
@@ -516,7 +527,18 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue.number,
-              body: `FH-AUTO-001 BLOCKED: Drei kontrollierte Versuche sind fehlgeschlagen. Der Branch ${branch} bleibt zur manuellen Diagnose erhalten. Prüfe den Workflow-Lauf ${context.runId}, die Artefakte, den Diff und die CI-Fehler; danach Auftrag korrigieren und agent-ready bewusst erneut setzen. Es wurde kein Merge und keine Datenbank-/Cloud-Änderung ausgeführt.`,
+              body: [
+                `FH-AUTO-001 BLOCKED: Drei kontrollierte Versuche sind fehlgeschlagen. Der Branch ${branch} bleibt zur manuellen Diagnose erhalten.`,
+                '',
+                'Die drei vorherigen Versuchskommentare enthalten jeweils die konkrete Kurzursache und den nächsten Schritt.',
+                '',
+                'Nächste Schritte:',
+                '1. Workflow-Lauf und die drei Artefakte öffnen.',
+                '2. Den ersten konkreten Fehler beheben; nicht nur erneut starten.',
+                '3. Issue-Beschreibung oder Code korrigieren, danach `agent-ready` bewusst erneut setzen.',
+                '4. Kein Merge und keine Datenbank-/Cloud-Änderung wurde ausgeführt.',
+                `Workflow-Lauf: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              ].join('\\n'),
             });
             try {
               await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, name: 'agent-queued' });
