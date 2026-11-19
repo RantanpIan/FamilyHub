@@ -132,6 +132,16 @@ describe("FH-CX-011 calendar series schema, RLS and commands", () => {
     expect(collision.error?.code).toBe("P0001");
   });
 
+  it("FH-CX-018 resolves series recipients through the calendar ACL", async () => {
+    const args = { p_resource_id: seriesId, p_kind: "all" as const };
+    const own = await owner.client.rpc("resolve_calendar_recipients_v1", args);
+    const foreign = await outsider.client.rpc("resolve_calendar_recipients_v1", args);
+    expect(own.error).toBeNull();
+    expect(own.data).toEqual([{ member_id: ownerMemberId, user_id: owner.id }]);
+    expect(foreign.error).toBeNull();
+    expect(foreign.data).toEqual([]);
+  });
+
   it("rejects unbounded or unsupported rules and cross-family creation", async () => {
     const args = createArgs(familyId, ownerMemberId);
     const unbounded = await owner.client.rpc("create_calendar_series_for_member", {
