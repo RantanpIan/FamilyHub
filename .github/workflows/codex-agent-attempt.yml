@@ -68,6 +68,14 @@ jobs:
           node-version: 24
           cache: npm
 
+      - name: Synchronize an existing agent branch with current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git merge --no-edit origin/main
+
       - name: Install locked dependencies before the agent
         run: npm ci
 
